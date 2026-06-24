@@ -1,0 +1,135 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build — ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: needle-windows-x64.exe
+            binary: target/x86_64-pc-windows-msvc/release/needle.exe
+
+          - os: macos-13        # Intel runner
+            target: x86_64-apple-darwin
+            artifact: needle-macos-x64
+            binary: target/x86_64-apple-darwin/release/needle
+
+          - os: macos-latest    # ARM runner (M-series)
+            target: aarch64-apple-darwin
+            artifact: needle-macos-arm64
+            binary: target/aarch64-apple-darwin/release/needle
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact: needle-linux-x64
+            binary: target/x86_64-unknown-linux-musl/release/needle
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl toolchain (Linux only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
+
+      - name: Cache Cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Copy binary to artifact name
+        shell: bash
+        run: cp "${{ matrix.binary }}" "${{ matrix.artifact }}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  vscode-extension:
+    name: Build VS Code extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: needle-vscode/package-lock.json
+
+      - name: Install & compile
+        working-directory: needle-vscode
+        run: npm ci && npm run compile
+
+      - name: Package .vsix
+        working-directory: needle-vscode
+        run: npx vsce package --no-dependencies
+
+      - name: Publish to VS Code Marketplace
+        if: ${{ secrets.VSCE_PAT != '' }}
+        working-directory: needle-vscode
+        run: npx vsce publish -p ${{ secrets.VSCE_PAT }}
+        continue-on-error: true
+
+      - name: Upload vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: needle-vscode-extension
+          path: needle-vscode/*.vsix
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: [build, vscode-extension]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Show downloaded files
+        run: ls -lh dist/
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

@@ -1,0 +1,114 @@
+[package]
+name = "needle"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "A local-first hybrid search engine with keyword + semantic search"
+
+[dependencies]
+# CLI framework
+clap = { version = "4.4", features = ["derive"] }
+
+# AST parsing and chunking
+tree-sitter = "0.20"
+tree-sitter-python = "0.20"
+tree-sitter-typescript = "0.20"
+tree-sitter-rust = "0.20"
+tree-sitter-go = "0.20"
+
+# File watching
+notify = "6.1"
+
+# Memory mapping
+memmap2 = "0.9"
+
+# Hashing (content dedup)
+xxhash-rust = { version = "0.8", features = ["xxh3", "xxh64"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+bincode = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
+
+# Parallelism
+rayon = "1.7"
+crossbeam = "0.8"
+
+# Unicode support
+unicode-normalization = "0.1"
+unicode-segmentation = "1.10"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Web UI server
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors"] }
+
+# Open browser / files
+open = "5"
+
+# Auth / users DB
+rusqlite = { version = "0.31", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+
+# Cookie support for sessions
+tower-cookies = "0.10"
+time = "0.3"
+
+# URL encoding
+urlencoding = "2"
+
+# HTTP client (Ollama embeddings + chat)
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+
+# RNG (HNSW layer sampling)
+rand = "0.8"
+
+# Time
+chrono = "0.4"
+
+# Path utilities
+dirs = "5"
+
+# Walk directories
+walkdir = "2.4"
+
+# Progress bars
+indicatif = "0.17"
+
+# Colored terminal output
+colored = "2"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile = "3.8"
+
+[[bench]]
+name = "hnsw_bench"
+harness = false
+
+[[bench]]
+name = "bm25_bench"
+harness = false
+
+[[bench]]
+name = "embedding_bench"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"

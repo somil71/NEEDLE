@@ -1,0 +1,31 @@
+/target/
+*.swp
+*.swo
+.DS_Store
+.env
+.vscode/
+.idea/
+*.iml
+
+# Index
+.needle/
+index/
+*.idx
+*.store
+*.bin
+*.wal
+
+# VS Code extension
+needle-vscode/node_modules/
+needle-vscode/out/
+*.vsix
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+
+# Local DB
+*.db
+*.db-wal
+*.db-shm

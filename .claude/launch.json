@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "needle-serve",
+      "runtimeExecutable": "target/release/needle.exe",
+      "runtimeArgs": ["serve", "--port", "7700"],
+      "port": 7700,
+      "autoPort": false
+    }
+  ]
+}
