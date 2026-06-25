@@ -3,6 +3,7 @@ pub mod config;
 pub mod init;
 pub mod mcp;
 pub mod reindex;
+pub mod report;
 pub mod search;
 pub mod serve;
 pub mod status;

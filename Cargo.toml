@@ -71,6 +71,9 @@ urlencoding = "2"
 # HTTP client (Ollama embeddings + chat)
 reqwest = { version = "0.12", features = ["blocking", "json"] }
 
+# PDF text extraction (pure Rust)
+pdf-extract = "0.7"
+
 # RNG (HNSW layer sampling)
 rand = "0.8"
 
