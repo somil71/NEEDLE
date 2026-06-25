@@ -25,13 +25,17 @@ export function activate(context: vscode.ExtensionContext) {
             });
             if (!res.ok) { throw new Error(); }
             const d = await res.json() as { total_chunks?: number; total_files?: number };
-            bar.text = `$(search) Needle: ${d.total_chunks ?? 0} chunks`;
-            bar.tooltip = `${d.total_files ?? 0} files indexed — click to open knowledge graph`;
+            const chunks = d.total_chunks ?? 0;
+            const files  = d.total_files  ?? 0;
+            bar.text = `$(search) Needle: ${chunks} chunks`;
+            bar.tooltip = `${files} files indexed — click to open knowledge graph`;
             bar.backgroundColor = undefined;
+            searchProvider.pushStatus(true, chunks, files);
         } catch {
             bar.text = `$(warning) Needle: offline`;
             bar.tooltip = `needle serve is not running on ${serverUrl()}`;
             bar.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+            searchProvider.pushStatus(false, 0, 0);
         }
     };
 
@@ -47,7 +51,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('needle.openInBrowser', () =>
             vscode.env.openExternal(vscode.Uri.parse(serverUrl()))
         ),
-        // Called from webview message to open a file at a specific line
         vscode.commands.registerCommand('needle.openFile', async (path: string, line: number) => {
             try {
                 const uri = vscode.Uri.file(path);

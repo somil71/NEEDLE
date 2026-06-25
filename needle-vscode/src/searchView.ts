@@ -19,6 +19,8 @@ interface SearchResponse {
 export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'needle.search';
 
+    private _view?: vscode.WebviewView;
+
     constructor(
         private readonly extensionUri: vscode.Uri,
         private readonly serverUrl: () => string,
@@ -29,6 +31,7 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
         _ctx: vscode.WebviewViewResolveContext,
         _token: vscode.CancellationToken,
     ) {
+        this._view = view;
         view.webview.options = { enableScripts: true };
         view.webview.html = this.buildHtml();
 
@@ -41,20 +44,29 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
                     const data = await res.json() as SearchResponse;
                     view.webview.postMessage({ type: 'results', results: data.results ?? [], timing: data.timing });
                 } catch (e: unknown) {
-                    const msg2 = e instanceof Error ? e.message : 'Search failed';
-                    view.webview.postMessage({ type: 'error', message: msg2 });
+                    const message = e instanceof Error ? e.message : 'Search failed';
+                    view.webview.postMessage({ type: 'error', message });
                 }
             }
 
             if (msg.type === 'openFile' && msg.path !== undefined && msg.line !== undefined) {
                 vscode.commands.executeCommand('needle.openFile', msg.path, msg.line);
             }
+
+            if (msg.type === 'showGraph') {
+                vscode.commands.executeCommand('needle.showGraph');
+            }
         });
     }
 
+    /** Called by extension.ts whenever the server status changes. */
+    pushStatus(online: boolean, chunks: number, files: number) {
+        this._view?.webview.postMessage({ type: 'status', online, chunks, files });
+    }
+
     private buildHtml(): string {
-        // Random nonce so each load gets a fresh inline script approval
         const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+        const url = this.serverUrl();
 
         return /* html */`<!DOCTYPE html>
 <html lang="en">
@@ -75,13 +87,46 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
     padding: 8px 10px;
   }
 
+  /* ── Status bar ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding: 5px 8px;
+    background: var(--vscode-sideBar-background, rgba(0,0,0,0.1));
+    border: 1px solid var(--vscode-panel-border, rgba(127,127,127,0.2));
+    border-radius: 4px;
+    font-size: 11px;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #6b7280;
+  }
+  .dot.online  { background: #10b981; }
+  .dot.offline { background: #f59e0b; }
+  .status-text { flex: 1; color: var(--vscode-descriptionForeground); }
+  .graph-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-textLink-foreground);
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    white-space: nowrap;
+  }
+  .graph-btn:hover { text-decoration: underline; }
+
   /* ── Search bar ── */
   .bar {
     display: flex;
     gap: 6px;
     margin-bottom: 6px;
   }
-  input {
+  input[type=search] {
     flex: 1;
     background: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
@@ -91,8 +136,8 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
     font: inherit;
     outline: none;
   }
-  input:focus { border-color: var(--vscode-focusBorder); }
-  input::placeholder { color: var(--vscode-input-placeholderForeground); }
+  input[type=search]:focus { border-color: var(--vscode-focusBorder); }
+  input[type=search]::placeholder { color: var(--vscode-input-placeholderForeground); }
 
   /* ── Meta line ── */
   .meta {
@@ -115,7 +160,6 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
     background: var(--vscode-list-hoverBackground);
     border-color: var(--vscode-list-hoverBackground);
   }
-
   .result-header {
     display: flex;
     align-items: center;
@@ -134,7 +178,6 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
   .badge.sem  { background: #5b21b6; color: #ede9fe; }
   .badge.bm25 { background: #0e7490; color: #e0f2fe; }
   .badge.both { background: #065f46; color: #d1fae5; }
-
   .result-path {
     font-size: 11px;
     color: var(--vscode-textLink-foreground);
@@ -142,7 +185,6 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-
   .result-code {
     font-family: var(--vscode-editor-font-family, 'Courier New', monospace);
     font-size: 11px;
@@ -158,12 +200,39 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
   }
 
   /* ── States ── */
-  .empty, .hint {
+  .hint {
     text-align: center;
     margin-top: 32px;
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
     line-height: 1.8;
+  }
+  .empty {
+    text-align: center;
+    margin-top: 32px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+  }
+  .offline-hint {
+    margin-top: 24px;
+    padding: 12px;
+    border: 1px solid var(--vscode-panel-border, rgba(127,127,127,0.3));
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.7;
+    text-align: center;
+  }
+  .offline-hint code {
+    display: inline-block;
+    margin-top: 6px;
+    font-family: var(--vscode-editor-font-family, monospace);
+    font-size: 11px;
+    background: var(--vscode-textBlockQuote-background, rgba(127,127,127,0.15));
+    border: 1px solid var(--vscode-panel-border, rgba(127,127,127,0.3));
+    border-radius: 3px;
+    padding: 3px 8px;
+    color: var(--vscode-foreground);
   }
   .error {
     font-size: 12px;
@@ -177,6 +246,12 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
 
+<div class="status-bar">
+  <div class="dot" id="dot"></div>
+  <span class="status-text" id="statusText">Connecting…</span>
+  <button class="graph-btn" id="graphBtn">Graph ↗</button>
+</div>
+
 <div class="bar">
   <input id="q" type="search" placeholder="Search code…" autocomplete="off" spellcheck="false">
 </div>
@@ -187,17 +262,30 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
-  const input  = document.getElementById('q');
-  const meta   = document.getElementById('meta');
+  const input   = document.getElementById('q');
+  const meta    = document.getElementById('meta');
   const results = document.getElementById('results');
+  const dot     = document.getElementById('dot');
+  const statusText = document.getElementById('statusText');
   let debounce;
+  let isOnline = false;
+
+  document.getElementById('graphBtn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'showGraph' });
+  });
 
   input.addEventListener('input', () => {
     clearTimeout(debounce);
     const q = input.value.trim();
     if (!q) {
       meta.textContent = '';
-      results.innerHTML = '<div class="hint">Type to search across the indexed codebase.<br>Results open the file at the exact line.</div>';
+      results.innerHTML = isOnline
+        ? '<div class="hint">Type to search across the indexed codebase.<br>Results open the file at the exact line.</div>'
+        : offlineHint();
+      return;
+    }
+    if (!isOnline) {
+      results.innerHTML = offlineHint();
       return;
     }
     meta.textContent = 'Searching…';
@@ -205,14 +293,34 @@ export class NeedleSearchViewProvider implements vscode.WebviewViewProvider {
   });
 
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { clearTimeout(debounce); const q = input.value.trim(); if (q) send(q); }
+    if (e.key === 'Enter') { clearTimeout(debounce); const q = input.value.trim(); if (q && isOnline) send(q); }
     if (e.key === 'Escape') { input.value = ''; input.dispatchEvent(new Event('input')); }
   });
 
   function send(q) { vscode.postMessage({ type: 'search', query: q }); }
 
+  function offlineHint() {
+    return '<div class="offline-hint">needle serve is not running.<br>Start it to enable search and graph.<br><code>needle serve</code></div>';
+  }
+
   window.addEventListener('message', e => {
     const msg = e.data;
+
+    if (msg.type === 'status') {
+      isOnline = msg.online;
+      dot.className = 'dot ' + (msg.online ? 'online' : 'offline');
+      statusText.textContent = msg.online
+        ? msg.chunks + ' chunks · ' + msg.files + ' files'
+        : 'needle serve offline';
+      // If offline and no active query, show hint
+      if (!msg.online && !input.value.trim()) {
+        results.innerHTML = offlineHint();
+        meta.textContent = '';
+      }
+      if (msg.online && !input.value.trim()) {
+        results.innerHTML = '<div class="hint">Type to search across the indexed codebase.<br>Results open the file at the exact line.</div>';
+      }
+    }
 
     if (msg.type === 'results') {
       const r = msg.results || [];

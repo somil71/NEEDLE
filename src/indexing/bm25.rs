@@ -107,8 +107,11 @@ impl BM25Index {
             let df = self.doc_freqs.get(term).copied().unwrap_or(1) as f32;
             let n = self.total_docs as f32;
 
-            // Robertson-Sparck Jones IDF (smooth, always positive)
-            let idf = ((n - df + 0.5) / (df + 0.5) + 1.0).ln();
+            // Robertson-Sparck Jones IDF (smooth). Clamp at 0: after soft-deletes
+            // `total_docs` (n) shrinks but `doc_freqs` (df) is not decremented until
+            // the next reindex, so df can exceed n and make the raw IDF negative —
+            // which would wrongly *penalize* documents that contain the term.
+            let idf = ((n - df + 0.5) / (df + 0.5) + 1.0).ln().max(0.0);
 
             for entry in postings {
                 if self.deleted_chunks.contains(&entry.chunk_id) {
