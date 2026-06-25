@@ -37,11 +37,12 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; colo
 .legend-row { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #94a3b8; margin-bottom: 3px; }
 .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
-#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 #toolbar { background: #12141f; border-bottom: 1px solid #2d3147; padding: 6px 14px; display: flex; align-items: center; gap: 10px; font-size: 11px; color: #475569; }
 #toolbar button { background: #1a1d27; border: 1px solid #2d3147; color: #94a3b8; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
 #toolbar button:hover { border-color: #7c9fff; color: #7c9fff; }
-svg#graph { flex: 1; }
+#graph-wrap { flex: 1; position: relative; overflow: hidden; }
+svg#graph { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
 .link { stroke-opacity: 0.45; fill: none; }
 .link-contains { stroke: #2d3147; stroke-width: 0.7; }
@@ -55,6 +56,10 @@ svg#graph { flex: 1; }
 .node.selected circle { stroke: #fff !important; stroke-width: 3; }
 .node.faded { opacity: 0.12; }
 .node.highlighted circle { stroke-width: 2.5; }
+
+#no-d3 { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: #1a1d27; border: 1px solid #ef4444; border-radius: 8px; padding: 20px 28px;
+  font-size: 13px; color: #fca5a5; text-align: center; z-index: 10; }
 </style>
 </head>
 <body>
@@ -83,10 +88,13 @@ svg#graph { flex: 1; }
     <button onclick="reheat()">Reheat</button>
     <span id="node-count"></span>
   </div>
-  <svg id="graph"></svg>
+  <div id="graph-wrap">
+    <svg id="graph"></svg>
+    <div id="no-d3">⚠ D3 failed to load — check your internet connection<br><small style="opacity:.6">or open via a local HTTP server instead of file://</small></div>
+  </div>
 </div>
 
-<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js" onerror="document.getElementById('no-d3').style.display='block'"></script>
 <script>
 const GRAPH = __GRAPH_DATA__;
 
@@ -131,167 +139,186 @@ function updateEdgeVisibility() {
   linkSel.classed('hidden', d => !activeEdges[d.kind]);
 }
 
-// SVG setup
-const svg = d3.select('#graph');
-const container = svg.append('g');
+// D3 init — deferred until layout is ready so clientWidth/Height are valid
+function initGraph() {
+  if (typeof d3 === 'undefined') return;
 
-const zoom = d3.zoom().scaleExtent([0.03, 8]).on('zoom', e => container.attr('transform', e.transform));
-svg.call(zoom);
+  const svgEl = document.getElementById('graph');
+  const wrap  = document.getElementById('graph-wrap');
 
-function resetZoom() { svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity); }
-function reheat() { sim.alpha(0.5).restart(); }
+  const W = () => wrap.clientWidth  || window.innerWidth  - 280;
+  const H = () => wrap.clientHeight || window.innerHeight;
 
-// Clamp w/h
-const W = () => svg.node().clientWidth || 800;
-const H = () => svg.node().clientHeight || 600;
+  // SVG setup
+  const svg = d3.select(svgEl);
+  const container = svg.append('g');
 
-// Build nodes + links (clone so sim can mutate)
-const nodes = GRAPH.nodes.map(d => ({...d}));
-const links = GRAPH.links.map(d => ({...d}));
+  const zoom = d3.zoom().scaleExtent([0.03, 8]).on('zoom', e => container.attr('transform', e.transform));
+  svg.call(zoom);
 
-// Force simulation
-const sim = d3.forceSimulation(nodes)
-  .force('link', d3.forceLink(links).id(d => d.id)
-    .distance(d => d.kind === 'contains' ? 35 : d.kind === 'imports' ? 90 : 70)
-    .strength(d => d.kind === 'calls' ? 0.4 : d.kind === 'imports' ? 0.25 : 0.15))
-  .force('charge', d3.forceManyBody().strength(d => d.kind === 'module' ? -200 : -80))
-  .force('center', d3.forceCenter(W() / 2, H() / 2))
-  .force('collide', d3.forceCollide(d => radius(d) + 4));
+  window.resetZoom = () => svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+  window.reheat    = () => sim.alpha(0.5).restart();
 
-// Arrowhead marker for calls edges
-svg.append('defs').selectAll('marker')
-  .data(['calls', 'imports', 'inherits'])
-  .join('marker')
-  .attr('id', d => `arrow-${d}`)
-  .attr('viewBox', '0 -4 8 8')
-  .attr('refX', 12)
-  .attr('refY', 0)
-  .attr('markerWidth', 5)
-  .attr('markerHeight', 5)
-  .attr('orient', 'auto')
-  .append('path')
-  .attr('fill', d => EDGE_COLORS[d])
-  .attr('d', 'M0,-4L8,0L0,4');
+  // Clone so D3 can mutate source/target
+  const nodes = GRAPH.nodes.map(d => ({...d}));
+  const links = GRAPH.links.map(d => ({...d}));
 
-// Links
-const linkSel = container.append('g').selectAll('line')
-  .data(links)
-  .join('line')
-  .attr('class', d => `link link-${d.kind}`)
-  .attr('marker-end', d => d.kind !== 'contains' ? `url(#arrow-${d.kind})` : null);
+  // Force simulation
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id)
+      .distance(d => d.kind === 'contains' ? 35 : d.kind === 'imports' ? 90 : 70)
+      .strength(d => d.kind === 'calls' ? 0.4 : d.kind === 'imports' ? 0.25 : 0.15))
+    .force('charge', d3.forceManyBody().strength(d => d.kind === 'module' ? -200 : -80))
+    .force('center', d3.forceCenter(W() / 2, H() / 2))
+    .force('collide', d3.forceCollide(d => radius(d) + 4));
 
-updateEdgeVisibility();
-
-// Nodes
-const radius = d => d.kind === 'module' ? 9 : d.kind === 'endpoint' ? 7 : 5;
-
-const nodeSel = container.append('g').selectAll('g')
-  .data(nodes)
-  .join('g')
-  .attr('class', 'node')
-  .call(d3.drag()
-    .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
-    .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
-    .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }))
-  .on('click', nodeClick)
-  .on('mouseover', (e, d) => { if (!selectedId) highlightNeighbors(d.id, true); })
-  .on('mouseout',  () => { if (!selectedId) clearHighlight(); });
-
-nodeSel.append('circle')
-  .attr('r', radius)
-  .attr('fill', d => COLOR[d.kind] || '#94a3b8')
-  .attr('stroke', d => d3.color(COLOR[d.kind] || '#94a3b8').brighter(0.6).toString())
-  .attr('fill-opacity', 0.85);
-
-nodeSel.append('text')
-  .attr('dy', d => radius(d) + 10)
-  .attr('text-anchor', 'middle')
-  .text(d => d.kind !== 'module' ? d.name : '');
-
-sim.on('tick', () => {
-  linkSel
-    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
-  nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
-});
-
-// Count visible nodes
-sim.on('end', () => {
-  document.getElementById('node-count').textContent = `${nodes.length} nodes rendered`;
-});
-
-// ── Selection & highlighting ───────────────────────────────────────────────────
-
-let selectedId = null;
-
-function neighborSet(id) {
-  const s = new Set([id]);
-  links.forEach(l => {
-    if (l.source.id === id) s.add(l.target.id);
-    if (l.target.id === id) s.add(l.source.id);
+  // Recentre on window resize
+  window.addEventListener('resize', () => {
+    sim.force('center', d3.forceCenter(W() / 2, H() / 2)).alpha(0.1).restart();
   });
-  return s;
+
+  // Arrowhead markers
+  svg.append('defs').selectAll('marker')
+    .data(['calls', 'imports', 'inherits'])
+    .join('marker')
+    .attr('id', d => `arrow-${d}`)
+    .attr('viewBox', '0 -4 8 8')
+    .attr('refX', 12)
+    .attr('refY', 0)
+    .attr('markerWidth', 5)
+    .attr('markerHeight', 5)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('fill', d => EDGE_COLORS[d])
+    .attr('d', 'M0,-4L8,0L0,4');
+
+  // Links
+  const linkSel = container.append('g').selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('class', d => `link link-${d.kind}`)
+    .attr('marker-end', d => d.kind !== 'contains' ? `url(#arrow-${d.kind})` : null);
+
+  window.linkSel = linkSel;
+  updateEdgeVisibility();
+
+  // Nodes
+  const radius = d => d.kind === 'module' ? 9 : d.kind === 'endpoint' ? 7 : 5;
+
+  const nodeSel = container.append('g').selectAll('g')
+    .data(nodes)
+    .join('g')
+    .attr('class', 'node')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }))
+    .on('click', nodeClick)
+    .on('mouseover', (e, d) => { if (!selectedId) highlightNeighbors(d.id, true); })
+    .on('mouseout',  () => { if (!selectedId) clearHighlight(); });
+
+  nodeSel.append('circle')
+    .attr('r', radius)
+    .attr('fill', d => COLOR[d.kind] || '#94a3b8')
+    .attr('stroke', d => d3.color(COLOR[d.kind] || '#94a3b8').brighter(0.6).toString())
+    .attr('fill-opacity', 0.85);
+
+  nodeSel.append('text')
+    .attr('dy', d => radius(d) + 10)
+    .attr('text-anchor', 'middle')
+    .text(d => d.kind !== 'module' ? d.name : '');
+
+  sim.on('tick', () => {
+    linkSel
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  sim.on('end', () => {
+    document.getElementById('node-count').textContent = `${nodes.length} nodes rendered`;
+  });
+
+  // ── Selection & highlighting ─────────────────────────────────────────────────
+
+  let selectedId = null;
+
+  function neighborSet(id) {
+    const s = new Set([id]);
+    links.forEach(l => {
+      if (l.source.id === id) s.add(l.target.id);
+      if (l.target.id === id) s.add(l.source.id);
+    });
+    return s;
+  }
+
+  function highlightNeighbors(id, hover) {
+    const nb = neighborSet(id);
+    nodeSel.classed('faded', n => !nb.has(n.id));
+    linkSel.classed('faded', l => l.source.id !== id && l.target.id !== id);
+    if (hover) nodeSel.classed('highlighted', n => n.id === id);
+  }
+
+  function clearHighlight() {
+    nodeSel.classed('faded highlighted', false);
+    linkSel.classed('faded', false);
+  }
+
+  function nodeClick(e, d) {
+    e.stopPropagation();
+    if (selectedId === d.id) { selectedId = null; clearHighlight(); showPlaceholder(); return; }
+    selectedId = d.id;
+    nodeSel.classed('selected', n => n.id === d.id);
+    highlightNeighbors(d.id, false);
+    showNodeInfo(d);
+  }
+
+  svg.on('click', () => { selectedId = null; clearHighlight(); nodeSel.classed('selected', false); showPlaceholder(); });
+
+  function showPlaceholder() {
+    document.getElementById('info').innerHTML = '<span style="color:#475569">Click a node to inspect it.</span>';
+  }
+
+  function showNodeInfo(d) {
+    const callers = links.filter(l => l.target.id === d.id && l.kind === 'calls').map(l => l.source.name);
+    const callees = links.filter(l => l.source.id === d.id && l.kind === 'calls').map(l => l.target.name);
+    const col = COLOR[d.kind] || '#94a3b8';
+    const tag = `<span class="tag" style="background:${col}22;color:${col}">${d.kind}${d.detail ? ' · '+d.detail : ''}</span>`;
+    const fp  = shortPath(d.file_path);
+    const loc = d.line_start ? `:${d.line_start}` : '';
+    document.getElementById('info').innerHTML = `
+      <h3>${d.name}</h3>
+      ${tag}
+      <div style="color:#475569;font-size:10px;margin-bottom:8px">${fp}${loc}</div>
+      ${callers.length ? `<div style="margin-bottom:5px"><b style="color:#e2e8f0">Called by</b> <span style="color:#64748b">(${callers.length})</span><br><span style="color:#94a3b8">${callers.slice(0,10).join(', ')}${callers.length>10?'…':''}</span></div>` : ''}
+      ${callees.length ? `<div><b style="color:#e2e8f0">Calls</b> <span style="color:#64748b">(${callees.length})</span><br><span style="color:#94a3b8">${callees.slice(0,10).join(', ')}${callees.length>10?'…':''}</span></div>` : ''}
+      ${!callers.length && !callees.length ? '<span style="color:#475569">No call edges.</span>' : ''}
+    `;
+  }
+
+  function shortPath(p) {
+    if (!p) return '';
+    const parts = p.split(/[/\\]/).filter(Boolean);
+    return parts.length >= 2 ? parts.slice(-2).join('/') : p;
+  }
+
+  // ── Search filter ────────────────────────────────────────────────────────────
+
+  document.getElementById('search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) { nodeSel.classed('faded', false); document.getElementById('node-count').textContent = `${nodes.length} nodes`; return; }
+    const visible = nodes.filter(n => n.name.toLowerCase().includes(q) || (n.file_path||'').toLowerCase().includes(q));
+    nodeSel.classed('faded', n => !n.name.toLowerCase().includes(q) && !(n.file_path||'').toLowerCase().includes(q));
+    document.getElementById('node-count').textContent = `${visible.length} / ${nodes.length} nodes`;
+  });
 }
 
-function highlightNeighbors(id, hover) {
-  const nb = neighborSet(id);
-  nodeSel.classed('faded', n => !nb.has(n.id));
-  linkSel.classed('faded', l => l.source.id !== id && l.target.id !== id);
-  if (hover) nodeSel.classed('highlighted', n => n.id === id);
+// Run after layout is complete
+if (document.readyState === 'complete') {
+  initGraph();
+} else {
+  window.addEventListener('load', initGraph);
 }
-
-function clearHighlight() {
-  nodeSel.classed('faded highlighted', false);
-  linkSel.classed('faded', false);
-}
-
-function nodeClick(e, d) {
-  e.stopPropagation();
-  if (selectedId === d.id) { selectedId = null; clearHighlight(); showPlaceholder(); return; }
-  selectedId = d.id;
-  nodeSel.classed('selected', n => n.id === d.id);
-  highlightNeighbors(d.id, false);
-  showNodeInfo(d);
-}
-
-svg.on('click', () => { selectedId = null; clearHighlight(); nodeSel.classed('selected', false); showPlaceholder(); });
-
-function showPlaceholder() {
-  document.getElementById('info').innerHTML = '<span style="color:#475569">Click a node to inspect it.</span>';
-}
-
-function showNodeInfo(d) {
-  const callers = links.filter(l => l.target.id === d.id && l.kind === 'calls').map(l => l.source.name);
-  const callees = links.filter(l => l.source.id === d.id && l.kind === 'calls').map(l => l.target.name);
-  const col = COLOR[d.kind] || '#94a3b8';
-  const tag = `<span class="tag" style="background:${col}22;color:${col}">${d.kind}</span>`;
-  const fp  = shortPath(d.file_path);
-  const loc = d.line_start ? `:${d.line_start}` : '';
-  document.getElementById('info').innerHTML = `
-    <h3>${d.name}</h3>
-    ${tag}
-    <div style="color:#475569;font-size:10px;margin-bottom:8px">${fp}${loc}</div>
-    ${callers.length ? `<div style="margin-bottom:5px"><b style="color:#e2e8f0">Called by</b> <span style="color:#64748b">(${callers.length})</span><br><span style="color:#94a3b8">${callers.slice(0,10).join(', ')}${callers.length>10?'…':''}</span></div>` : ''}
-    ${callees.length ? `<div><b style="color:#e2e8f0">Calls</b> <span style="color:#64748b">(${callees.length})</span><br><span style="color:#94a3b8">${callees.slice(0,10).join(', ')}${callees.length>10?'…':''}</span></div>` : ''}
-    ${!callers.length && !callees.length ? '<span style="color:#475569">No call edges.</span>' : ''}
-  `;
-}
-
-function shortPath(p) {
-  if (!p) return '';
-  const parts = p.split(/[/\\]/).filter(Boolean);
-  return parts.length >= 2 ? parts.slice(-2).join('/') : p;
-}
-
-// ── Search filter ──────────────────────────────────────────────────────────────
-
-document.getElementById('search').addEventListener('input', e => {
-  const q = e.target.value.toLowerCase().trim();
-  if (!q) { nodeSel.classed('faded', false); document.getElementById('node-count').textContent = `${nodes.length} nodes`; return; }
-  const visible = nodes.filter(n => n.name.toLowerCase().includes(q) || (n.file_path||'').toLowerCase().includes(q));
-  nodeSel.classed('faded', n => !n.name.toLowerCase().includes(q) && !(n.file_path||'').toLowerCase().includes(q));
-  document.getElementById('node-count').textContent = `${visible.length} / ${nodes.length} nodes`;
-});
 </script>
 </body>
 </html>
