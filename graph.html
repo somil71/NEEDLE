@@ -163,6 +163,8 @@ function initGraph() {
   const nodes = GRAPH.nodes.map(d => ({...d}));
   const links = GRAPH.links.map(d => ({...d}));
 
+  const radius = d => d.kind === 'module' ? 9 : d.kind === 'endpoint' ? 7 : 5;
+
   // Force simulation
   const sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(d => d.id)
@@ -203,8 +205,6 @@ function initGraph() {
   updateEdgeVisibility();
 
   // Nodes
-  const radius = d => d.kind === 'module' ? 9 : d.kind === 'endpoint' ? 7 : 5;
-
   const nodeSel = container.append('g').selectAll('g')
     .data(nodes)
     .join('g')
