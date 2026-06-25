@@ -1392,7 +1392,7 @@ footer {
                       <div class="code-copy"><pre><code>git clone https://github.com/somil71/needle
 cd needle
 cargo build --release
-sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
@@ -1400,14 +1400,14 @@ sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-bt
                     <div>
                       <h4>Index a directory</h4>
                       <p>Scans files, builds BM25 + HNSW indexes, extracts the call graph.</p>
-                      <div class="code-copy"><pre><code>needle init ~/code/my-project</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <div class="code-copy"><pre><code>needle init ~/code/my-project</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
                     <div class="pstep-num">3</div>
                     <div>
                       <h4>Open the web UI</h4>
-                      <div class="code-copy"><pre><code>needle serve --port 7700</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <div class="code-copy"><pre><code>needle serve --port 7700</code></pre><button class="copy-btn">Copy</button></div>
                       <p>Navigate to <code>http://localhost:7700</code> — this page.</p>
                     </div>
                   </div>
@@ -1446,7 +1446,7 @@ sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-bt
                     <div>
                       <h4>Search from the terminal</h4>
                       <div class="code-copy"><pre><code>needle search "authentication handler" --lang rust
-needle search "retry HTTP" --limit 20</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+needle search "retry HTTP" --limit 20</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
@@ -1454,14 +1454,14 @@ needle search "retry HTTP" --limit 20</code></pre><button class="copy-btn" oncli
                     <div>
                       <h4>Generate the call graph</h4>
                       <div class="code-copy"><pre><code>needle graph              # opens in browser
-needle graph -o graph.html  # save standalone file</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+needle graph -o graph.html  # save standalone file</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
                     <div class="pstep-num">3</div>
                     <div>
                       <h4>Write an architecture report</h4>
-                      <div class="code-copy"><pre><code>needle report -o GRAPH_REPORT.md</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <div class="code-copy"><pre><code>needle report -o GRAPH_REPORT.md</code></pre><button class="copy-btn">Copy</button></div>
                       <p>Outputs god nodes, communities, and surprise edges as Markdown.</p>
                     </div>
                   </div>
@@ -1469,7 +1469,7 @@ needle graph -o graph.html  # save standalone file</code></pre><button class="co
                     <div class="pstep-num">4</div>
                     <div>
                       <h4>Run as MCP server</h4>
-                      <div class="code-copy"><pre><code>needle mcp   # stdio transport, used by AI tools</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <div class="code-copy"><pre><code>needle mcp   # stdio transport, used by AI tools</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                 </div>
@@ -1506,7 +1506,7 @@ needle graph -o graph.html  # save standalone file</code></pre><button class="co
                     <div>
                       <h4>Install the extension</h4>
                       <p>Search <strong>"Needle Code Search"</strong> in the VS Code Marketplace, or install from VSIX:</p>
-                      <div class="code-copy"><pre><code>code --install-extension needle-vscode.vsix</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <div class="code-copy"><pre><code>code --install-extension needle-vscode.vsix</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
@@ -1529,7 +1529,7 @@ needle graph -o graph.html  # save standalone file</code></pre><button class="co
       "args": ["mcp"]
     }
   }
-}</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+}</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                 </div>
@@ -1572,7 +1572,7 @@ needle graph -o graph.html  # save standalone file</code></pre><button class="co
                       <h4>Build the Docker image</h4>
                       <div class="code-copy"><pre><code>docker build -t needle .
 docker run -p 8080:8080 \
-  -v needle_data:/data needle</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+  -v needle_data:/data needle</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
@@ -1581,7 +1581,7 @@ docker run -p 8080:8080 \
                       <h4>Deploy to Railway</h4>
                       <div class="code-copy"><pre><code>railway login
 railway init
-railway up</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+railway up</code></pre><button class="copy-btn">Copy</button></div>
                       <p>Set <code>DATA_DIR=/data</code> and mount a persistent volume for the SQLite DB.</p>
                     </div>
                   </div>
@@ -1593,7 +1593,7 @@ railway up</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</b
                       <div class="code-copy"><pre><code>GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
 SESSION_SECRET=...
-BASE_URL=https://your-domain.com</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+BASE_URL=https://your-domain.com</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                 </div>
@@ -2925,6 +2925,7 @@ function nav(page) {
   if (page === 'index') loadIndexPage();
   if (page === 'setup') initSetupPage();
   if (page === 'dashboard') loadDashboard();
+  if (page === 'graph') loadGraph();
 }
 
 function initSetupPage() {
@@ -3349,8 +3350,8 @@ function langToHljs(lang) {
 }
 
 function signalBadge(sig) {
-  const map = { Both: ['accent','Both'], Keyword: ['','Keyword'], Semantic: ['','Semantic'] };
-  const [cls, label] = map[sig] || ['','—'];
+  const map = { HYBRID: ['accent','Hybrid'], KW: ['','Keyword'], SEM: ['','Semantic'] };
+  const [cls, label] = map[sig] || ['', sig || '—'];
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
@@ -3366,7 +3367,7 @@ function renderResult(res, idx) {
     <div class="result-header">
       <span class="result-file" title="${file}">${shortFile}</span>
       <span class="result-lines">L${res.line_start}–${res.line_end}</span>
-      ${signalBadge(res.signals)}
+      ${signalBadge(res.signal)}
       <span class="result-score">${score}</span>
       <div class="result-actions">
         <button class="btn btn-ghost btn-sm" onclick="openFile('${escJs(res.file_path)}', ${res.line_start})" title="Open in editor">Open</button>
@@ -3612,8 +3613,8 @@ function escJs(s) {
         const parts = (res.file_path || '').replace(/\\/g, '/').split('/');
         const fname = parts.slice(-2).join('/');
         const sig = (res.signal || '').toLowerCase();
-        const bc = sig === 'sem' ? 'sem' : sig === 'bm25' ? 'bm25' : 'both';
-        const bl = sig === 'sem' ? 'SEM' : sig === 'bm25' ? 'BM25' : 'BOTH';
+        const bc = sig === 'sem' ? 'sem' : sig === 'kw' ? 'bm25' : 'both';
+        const bl = sig === 'sem' ? 'SEM' : sig === 'kw' ? 'BM25' : 'BOTH';
         const snippet = (res.content || '').trim().slice(0, 120).replace(/\n/g, ' ');
         return '<div class="hero-demo-result"><div class="hero-demo-result-top">' +
           '<span class="demo-badge ' + bc + '">' + bl + '</span>' +
@@ -3962,12 +3963,6 @@ function hideTooltip() {
   document.getElementById('graph-tooltip').style.display = 'none';
 }
 
-// Hook into the router so graph loads when page is visited
-const _origNav = nav;
-window.nav = function(page) {
-  _origNav(page);
-  if (page === 'graph') loadGraph();
-};
 
 // ── Platform tabs ─────────────────────────────────────────
 function switchPlatform(id, btn) {
