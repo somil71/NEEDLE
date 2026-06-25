@@ -24,9 +24,9 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Runtime deps: openssl (reqwest TLS), ca-certs (GitHub API HTTPS)
+# Runtime deps: openssl (reqwest TLS), ca-certs (GitHub API HTTPS), git (repo cloning)
 RUN apt-get update && apt-get install -y \
-    ca-certificates libssl3 \
+    ca-certificates libssl3 git \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/needle /usr/local/bin/needle

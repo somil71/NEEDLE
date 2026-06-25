@@ -40,6 +40,7 @@ fn migrate(conn: &Connection) -> Result<()> {
             github_avatar    TEXT,
             email            TEXT,
             api_key          TEXT UNIQUE NOT NULL,
+            gh_token         TEXT,
             created_at       INTEGER NOT NULL,
             last_seen        INTEGER NOT NULL,
             is_active        INTEGER NOT NULL DEFAULT 1
@@ -239,6 +240,10 @@ pub fn upsert_repo(conn: &Connection, user_id: &str, name: &str, full: &str, url
     Ok(id)
 }
 
+pub fn store_gh_token(conn: &Connection, user_id: &str, token: &str) {
+    let _ = conn.execute("UPDATE users SET gh_token=?1 WHERE id=?2", params![token, user_id]);
+}
+
 pub fn touch_last_seen(conn: &Connection, user_id: &str) {
     let ts = now() as i64;
     let _ = conn.execute("UPDATE users SET last_seen=?1 WHERE id=?2", params![ts, user_id]);
@@ -246,9 +251,16 @@ pub fn touch_last_seen(conn: &Connection, user_id: &str) {
 
 pub fn set_repo_status(conn: &Connection, repo_id: &str, status: &str) -> Result<()> {
     let ts = now() as i64;
-    conn.execute(
-        "UPDATE user_repos SET status=?1, indexed_at=?2 WHERE id=?3",
-        params![status, ts, repo_id],
-    )?;
+    if status == "indexed" {
+        conn.execute(
+            "UPDATE user_repos SET status=?1, indexed_at=?2 WHERE id=?3",
+            params![status, ts, repo_id],
+        )?;
+    } else {
+        conn.execute(
+            "UPDATE user_repos SET status=?1 WHERE id=?2",
+            params![status, repo_id],
+        )?;
+    }
     Ok(())
 }

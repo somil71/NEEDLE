@@ -2445,6 +2445,7 @@ async function loadDashboard() {
 
     if (status.is_cloud) {
       document.getElementById('dash-cloud-section').style.display = 'block';
+      loadConnectedRepos();
     } else {
       document.getElementById('dash-local-section').style.display = 'block';
       if (status.has_index) {
@@ -2513,11 +2514,49 @@ async function connectRepo(repo) {
     const data = await res.json();
     if (data.ok) {
       closeRepoModal();
-      document.getElementById('dash-repos').innerHTML = `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
-        <div style="font-weight:600">${repo.full_name}</div>
-        <div style="color:#F59E0B;font-size:.85rem;margin-top:4px">⏳ Indexing queued…</div>
-      </div>`;
+      loadConnectedRepos();
     }
+  } catch(e) {}
+}
+
+let _reposPollTimer = null;
+
+async function loadConnectedRepos() {
+  clearTimeout(_reposPollTimer);
+  try {
+    const res = await fetch('/api/repos');
+    if (!res.ok) return;
+    const { repos = [] } = await res.json();
+
+    const container = document.getElementById('dash-repos');
+    if (repos.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-muted);font-size:.9rem">No repos connected yet. Click <strong>+ Add repo</strong> to index a GitHub repo on the cloud.</div>';
+      return;
+    }
+
+    container.innerHTML = repos.map(r => {
+      const s = r.status || '';
+      let badge;
+      if (s === 'indexed')       badge = '<span style="color:#22c55e;font-size:.82rem">✓ Indexed</span>';
+      else if (s === 'indexing') badge = '<span style="color:#F59E0B;font-size:.82rem">⚙️ Indexing…</span>';
+      else if (s === 'cloning')  badge = '<span style="color:#F59E0B;font-size:.82rem">⏳ Cloning…</span>';
+      else if (s === 'pending')  badge = '<span style="color:#a1a1aa;font-size:.82rem">⏳ Queued</span>';
+      else if (s.startsWith('error')) {
+        const msg = s.slice(6).trim().slice(0, 80);
+        badge = `<span style="color:#ef4444;font-size:.82rem" title="${msg}">✗ Error</span>`;
+      } else {
+        badge = `<span style="color:#a1a1aa;font-size:.82rem">${s}</span>`;
+      }
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:600;font-size:.9rem">${r.repo_full}</div>
+          <div style="margin-top:4px">${badge}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const inProgress = repos.some(r => ['pending','cloning','indexing'].includes(r.status));
+    if (inProgress) _reposPollTimer = setTimeout(loadConnectedRepos, 4000);
   } catch(e) {}
 }
 

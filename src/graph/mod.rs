@@ -131,6 +131,27 @@ pub fn extract(file_entries: &[(PathBuf, Language, String)]) -> CodeGraph {
         }
     }
 
+    // ── Pass 1.5: Mark Axum / JAX-RS / Express route handlers as Endpoint ───────
+    // Scans for .route("/path", get(handler)) patterns without requiring a new dep.
+    for (path, lang, content) in file_entries {
+        let fp = path.to_string_lossy().to_string();
+        let handlers = match lang {
+            Language::Rust => extract_axum_routes(content),
+            Language::TypeScript | Language::JavaScript => extract_express_routes(content),
+            _ => vec![],
+        };
+        for (http_method, handler_name) in handlers {
+            if let Some(node_ids) = name_index.get(&handler_name) {
+                for &nid in node_ids {
+                    if nodes[nid as usize].file_path == fp || node_ids.len() == 1 {
+                        nodes[nid as usize].kind = NodeKind::Endpoint;
+                        nodes[nid as usize].detail = Some(http_method.clone());
+                    }
+                }
+            }
+        }
+    }
+
     // ── Pass 2: Import edges ──────────────────────────────────────────────────
     for (path, lang, content) in file_entries {
         let fp = path.to_string_lossy().to_string();
@@ -161,7 +182,18 @@ pub fn extract(file_entries: &[(PathBuf, Language, String)]) -> CodeGraph {
             for callee_name in callees {
                 if callee_name == caller_name { continue; }
                 if let Some(callee_ids) = name_index.get(&callee_name) {
-                    for &callee_id in callee_ids {
+                    // When a name is shared across multiple files (e.g. `run`, `now`),
+                    // only add an edge to the same-file definition to avoid false
+                    // cross-file edges for generic names. Unambiguous names (one match)
+                    // always get an edge.
+                    let callee_id = if callee_ids.len() == 1 {
+                        Some(callee_ids[0])
+                    } else {
+                        callee_ids.iter()
+                            .find(|&&id| nodes[id as usize].file_path == fp)
+                            .copied()
+                    };
+                    if let Some(callee_id) = callee_id {
                         edges.push(GraphEdge { from: caller_id, to: callee_id, kind: EdgeKind::Calls });
                     }
                 }
@@ -186,6 +218,65 @@ pub fn extract(file_entries: &[(PathBuf, Language, String)]) -> CodeGraph {
     };
 
     CodeGraph { nodes, edges, stats }
+}
+
+// ── Route handler detection ───────────────────────────────────────────────────
+
+/// Detect Axum `.route("/path", get(handler))` patterns in Rust source.
+fn extract_axum_routes(content: &str) -> Vec<(String, String)> {
+    let http_methods = ["get", "post", "put", "delete", "patch", "head", "options"];
+    let mut out = Vec::new();
+    for line in content.lines() {
+        let l = line.trim();
+        if !l.contains(".route(") && !l.contains("route!(") { continue; }
+        for method in &http_methods {
+            // Matches: get(fn_name) or post(fn_name)
+            let pat = format!("{}(", method);
+            if let Some(pos) = l.find(&pat) {
+                // Make sure it's not inside a string (crude but effective)
+                let before = &l[..pos];
+                if before.contains('"') && before.matches('"').count() % 2 == 1 { continue; }
+                let after = &l[pos + pat.len()..];
+                let end = after.find(|c: char| !c.is_alphanumeric() && c != '_').unwrap_or(after.len());
+                let handler = after[..end].trim();
+                if handler.len() > 2 {
+                    out.push((method.to_uppercase(), handler.to_string()));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Detect Express.js `router.get('/path', handler)` patterns.
+fn extract_express_routes(content: &str) -> Vec<(String, String)> {
+    let http_methods = ["get", "post", "put", "delete", "patch", "use"];
+    let mut out = Vec::new();
+    for line in content.lines() {
+        let l = line.trim();
+        for method in &http_methods {
+            // Matches: router.get('/path', handler) or app.post('/path', handler)
+            let pat = format!(".{}('", method);
+            let pat2 = format!(".{}(\"/", method);
+            let base = if l.contains(&pat) { &pat } else if l.contains(&pat2) { &pat2 } else { continue };
+            // Find closing quote then comma then handler
+            if let Some(close_quote) = l.find(|c| c == '\'' || c == '"').and_then(|p| {
+                l[p+1..].find(|c| c == '\'' || c == '"').map(|q| p + 1 + q)
+            }) {
+                let rest = &l[close_quote+1..];
+                if let Some(comma) = rest.find(',') {
+                    let handler_part = rest[comma+1..].trim();
+                    let end = handler_part.find(|c: char| !c.is_alphanumeric() && c != '_').unwrap_or(handler_part.len());
+                    let handler = handler_part[..end].trim();
+                    if handler.len() > 2 {
+                        out.push((method.to_uppercase(), handler.to_string()));
+                    }
+                }
+            }
+            let _ = base;
+        }
+    }
+    out
 }
 
 // ── Dispatch ──────────────────────────────────────────────────────────────────

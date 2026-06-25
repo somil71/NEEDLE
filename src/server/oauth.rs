@@ -151,6 +151,9 @@ pub async fn auth_callback(
         Err(e) => return Html(error_page(&format!("Session error: {e}"))).into_response(),
     };
 
+    // Persist GitHub token in DB so the background indexer can clone private repos
+    super::users::store_gh_token(&conn, &user.id, &access_token);
+
     // Store access token in a separate cookie (used client-side for repo listing)
     let mut gh_cookie = Cookie::new("gh_token", access_token);
     gh_cookie.set_http_only(true);
