@@ -1040,7 +1040,7 @@ footer {
     <div class="section">
       <div class="section-header">
         <h2>Everything you need to understand a codebase</h2>
-        <p>One index. Four ways to explore.</p>
+        <p>One index. Search, graph, report, and ask — all offline.</p>
       </div>
       <div class="features-grid">
 
@@ -1049,15 +1049,7 @@ footer {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
           <h3>Keyword + semantic search</h3>
-          <p>Search by exact name or describe what you're looking for. Needle finds both — and merges the results so the best match is always at the top.</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-          </div>
-          <h3>Connect your AI tool</h3>
-          <p>Claude, Cursor, Windsurf, Copilot, Gemini — any tool that supports MCP can call Needle directly. Your AI searches your code instead of guessing.</p>
+          <p>Search by exact name or describe what you're looking for. BM25 + HNSW vector search merge results so the best match is always first — in under 50 ms.</p>
         </div>
 
         <div class="feature-card">
@@ -1065,7 +1057,23 @@ footer {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
           </div>
           <h3>Knowledge graph</h3>
-          <p>See every function, class, and file as a node. Click any node to see what it calls, what calls it, and where it lives — without reading the code.</p>
+          <p>Every function, class, and endpoint as a live node. Filter by type, click to see callers &amp; callees. Run <code>needle graph</code> for a portable D3 file.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <h3>Graph report</h3>
+          <p><code>needle report</code> outputs a Markdown file with god nodes (most-connected symbols), module communities, and surprise cross-cluster dependencies.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          </div>
+          <h3>MCP for AI agents</h3>
+          <p>Claude, Cursor, Windsurf, Copilot — any MCP client gets <code>search_code</code>, <code>find_callers</code>, <code>get_god_nodes</code>, <code>explain</code>, and 7 more tools.</p>
         </div>
 
         <div class="feature-card">
@@ -1073,7 +1081,15 @@ footer {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           </div>
           <h3>Ask your codebase</h3>
-          <p>Type a question. Needle finds the relevant chunks, then passes them to a local or cloud AI to give you an answer grounded in your actual code.</p>
+          <p>Type a question. Needle retrieves relevant chunks and routes to the best available AI — Anthropic, OpenAI, Groq, or local Ollama — automatically.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          </div>
+          <h3>8 languages + PDF</h3>
+          <p>AST-aware chunking for Rust, Python, TypeScript, Go, Java, C, C++, and Markdown. Drop a PDF into your project — it's indexed automatically, no config needed.</p>
         </div>
 
       </div>
@@ -2078,13 +2094,13 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
 
       <div class="graph-ctrl-section">
         <div class="graph-ctrl-label">Node types</div>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="module" onchange="rerenderGraph()"><span class="legend-dot" style="background:#71717A"></span>Module</label>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="function" onchange="rerenderGraph()"><span class="legend-dot" style="background:#6366F1"></span>Function</label>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="method" onchange="rerenderGraph()"><span class="legend-dot" style="background:#3B82F6"></span>Method</label>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="class" onchange="rerenderGraph()"><span class="legend-dot" style="background:#8B5CF6"></span>Class / Enum</label>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="struct" onchange="rerenderGraph()"><span class="legend-dot" style="background:#F97316"></span>Struct</label>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="trait" onchange="rerenderGraph()"><span class="legend-dot" style="background:#F59E0B"></span>Trait</label>
-        <label class="graph-legend-item"><input type="checkbox" checked data-kind="endpoint" onchange="rerenderGraph()"><span class="legend-dot" style="background:#10B981"></span>Endpoint</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="module" onchange="rerenderGraph()"><span class="legend-dot" style="background:#6366F1"></span>Module</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="function" onchange="rerenderGraph()"><span class="legend-dot" style="background:#3B82F6"></span>Function</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="method" onchange="rerenderGraph()"><span class="legend-dot" style="background:#06B6D4"></span>Method</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="class" onchange="rerenderGraph()"><span class="legend-dot" style="background:#F59E0B"></span>Class / Enum</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="struct" onchange="rerenderGraph()"><span class="legend-dot" style="background:#10B981"></span>Struct</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="trait" onchange="rerenderGraph()"><span class="legend-dot" style="background:#A78BFA"></span>Trait</label>
+        <label class="graph-legend-item"><input type="checkbox" checked data-kind="endpoint" onchange="rerenderGraph()"><span class="legend-dot" style="background:#EF4444"></span>Endpoint</label>
       </div>
 
       <div class="graph-ctrl-section">
@@ -3003,13 +3019,13 @@ let _selectedNodeId = null;
 let _detailNode = null;
 
 const KIND_COLOR = {
-  module:   '#71717A',
-  function: '#6366F1',
-  method:   '#3B82F6',
-  class:    '#8B5CF6',
-  struct:   '#F97316',
-  trait:    '#F59E0B',
-  endpoint: '#10B981',
+  module:   '#6366F1',
+  function: '#3B82F6',
+  method:   '#06B6D4',
+  class:    '#F59E0B',
+  struct:   '#10B981',
+  trait:    '#A78BFA',
+  endpoint: '#EF4444',
 };
 const EDGE_COLOR = {
   contains: '#3F3F46',
@@ -3159,13 +3175,13 @@ function rerenderGraph() {
   _graphSim = d3.forceSimulation(simNodes)
     .force('link', d3.forceLink(simLinks)
       .id(d => d.id)
-      .distance(d => d.kind === 'contains' ? 30 : d.kind === 'imports' ? 120 : 80)
-      .strength(d => d.kind === 'contains' ? 0.2 : 0.4))
-    .force('charge', d3.forceManyBody().strength(n => n.kind === 'module' ? -400 : -150))
+      .distance(d => d.kind === 'contains' ? 25 : d.kind === 'imports' ? 70 : 55)
+      .strength(d => d.kind === 'contains' ? 0.15 : 0.4))
+    .force('charge', d3.forceManyBody().strength(n => n.kind === 'module' ? -180 : -60))
     .force('center', d3.forceCenter(W / 2, H / 2))
     .force('collision', d3.forceCollide(d => Math.max(6, Math.min(16, 6 + Math.sqrt(d.deg)))))
-    .alphaDecay(0.015)
-    .velocityDecay(0.35)
+    .alphaDecay(0.022)
+    .velocityDecay(0.4)
     .on('tick', () => {
       link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
           .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
