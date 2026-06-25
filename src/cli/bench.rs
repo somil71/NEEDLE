@@ -190,7 +190,7 @@ pub async fn run() -> Result<()> {
     println!("  {}:", "BM25 stats".bold());
     println!(
         "    Vocabulary: {} terms",
-        meta.total_chunks.to_string().dimmed()
+        engine.bm25.vocabulary_size().to_string().dimmed()
     );
     println!(
         "    avg chunk length: {:.0} tokens",
