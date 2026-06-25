@@ -923,6 +923,147 @@ footer {
   border-left: 3px solid var(--accent);
   margin-bottom: 16px;
 }
+
+/* ── Needle logo icon ───────────────────────────────────── */
+.needle-logo-icon { color: var(--accent); flex-shrink: 0; }
+
+/* ── Platform tabs ──────────────────────────────────────── */
+.platform-tabs-wrap { margin-top: 40px; }
+.platform-tab-row {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border); margin-bottom: 0;
+}
+.ptab {
+  padding: 9px 22px; border-radius: var(--radius) var(--radius) 0 0;
+  font-size: 0.875rem; font-weight: 500; color: var(--text-3);
+  cursor: pointer; border: 1px solid transparent; border-bottom: none;
+  background: none; font-family: var(--font); margin-bottom: -1px;
+  transition: all 0.15s; display: flex; align-items: center; gap: 7px;
+}
+.ptab:hover { color: var(--text); background: var(--surface); }
+.ptab.active {
+  color: var(--text); background: var(--surface);
+  border-color: var(--border); border-bottom-color: var(--surface);
+}
+.ptab-panel { display: none; }
+.ptab-panel.active { display: block; }
+.ptab-content {
+  background: var(--surface); border: 1px solid var(--border);
+  border-top: none; border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  padding: 32px 28px;
+}
+.ptab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+@media (max-width: 700px) { .ptab-grid { grid-template-columns: 1fr; gap: 24px; } }
+.ptab-info h3 { font-size: 1.125rem; margin-bottom: 8px; }
+.ptab-info > p { font-size: 0.9375rem; margin-bottom: 20px; }
+.pstep-list { display: flex; flex-direction: column; gap: 16px; }
+.pstep { display: flex; gap: 14px; align-items: flex-start; }
+.pstep-num {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; margin-top: 2px;
+}
+.pstep h4 { font-size: 0.9375rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.pstep p { font-size: 0.875rem; color: var(--text-2); margin-bottom: 8px; }
+.pstep p:last-child { margin-bottom: 0; }
+.ptab-terminal { background: #0d0d0f; border-radius: var(--radius); padding: 20px; border: 1px solid rgba(255,255,255,0.06); }
+.ptab-terminal .t-comment { color: #555; font-family: var(--mono); font-size: 0.8125rem; line-height: 2; }
+.ptab-terminal .t-prompt { color: #10B981; font-family: var(--mono); font-size: 0.8125rem; }
+.ptab-terminal .t-cmd { color: #e4e4e7; font-family: var(--mono); font-size: 0.8125rem; }
+.ptab-terminal .t-out { color: #71717a; font-family: var(--mono); font-size: 0.8125rem; line-height: 1.8; }
+.ptab-terminal .t-url { color: #818cf8; font-family: var(--mono); font-size: 0.8125rem; }
+.platform-badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.platform-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px;
+  font-size: 0.8125rem; font-weight: 500; color: var(--text-2);
+  border: 1px solid var(--border); background: var(--surface-2);
+}
+
+/* ── FAQ ────────────────────────────────────────────────── */
+.faq-list {
+  display: flex; flex-direction: column; gap: 0;
+  margin-top: 32px; border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.faq-item { border-bottom: 1px solid var(--border); }
+.faq-item:last-child { border-bottom: none; }
+.faq-q {
+  width: 100%; text-align: left; padding: 18px 20px;
+  background: var(--surface); border: none; cursor: pointer;
+  font-family: var(--font); font-size: 0.9375rem; font-weight: 600;
+  color: var(--text); display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; transition: background 0.15s;
+}
+.faq-q:hover { background: var(--surface-2); }
+.faq-chevron { flex-shrink: 0; transition: transform 0.2s; color: var(--text-3); }
+.faq-item.open .faq-chevron { transform: rotate(180deg); }
+.faq-a {
+  display: none; padding: 0 20px 20px;
+  background: var(--surface); font-size: 0.9375rem;
+  color: var(--text-2); line-height: 1.75;
+}
+.faq-item.open .faq-a { display: block; }
+.faq-a p { margin-bottom: 8px; }
+.faq-a p:last-child { margin-bottom: 0; }
+.faq-a ul { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+
+/* ── About / author section ─────────────────────────────── */
+.about-section { padding: 80px 0 60px; }
+.about-grid { display: grid; grid-template-columns: 1fr auto; gap: 64px; align-items: start; }
+@media (max-width: 720px) { .about-grid { grid-template-columns: 1fr; gap: 32px; } }
+.about-left h2 { margin-bottom: 16px; }
+.about-left p { font-size: 0.9375rem; line-height: 1.8; margin-bottom: 12px; }
+.about-left p:last-of-type { margin-bottom: 24px; }
+.social-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.social-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 18px; border-radius: var(--radius);
+  font-size: 0.875rem; font-weight: 500; text-decoration: none;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  transition: all 0.15s;
+}
+.social-link:hover { border-color: var(--accent); color: var(--text); background: var(--accent-subtle); text-decoration: none; }
+.about-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 28px 24px;
+  width: 240px; display: flex; flex-direction: column; gap: 14px;
+  flex-shrink: 0;
+}
+@media (max-width: 720px) { .about-card { width: 100%; } }
+.about-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--accent-subtle); border: 2px solid rgba(124,58,237,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 700; color: var(--accent); letter-spacing: -0.03em;
+}
+.about-name { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+.about-role { font-size: 0.8125rem; color: var(--text-3); margin-top: -4px; }
+.about-tag-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.about-tag {
+  font-size: 0.7rem; font-weight: 500; font-family: var(--mono);
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3);
+}
+
+/* ── Feature card expand ─────────────────────────────── */
+.feature-card { cursor: default; }
+.feat-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.feat-chip {
+  font-size: 0.7rem; font-weight: 600; font-family: var(--mono);
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--accent-subtle); border: 1px solid rgba(124,58,237,0.25); color: #a78bfa;
+}
+
+/* ── Horizontal divider with label ─────────────────────── */
+.divider-label {
+  display: flex; align-items: center; gap: 16px;
+  color: var(--text-3); font-size: 0.8125rem; margin: 4px 0;
+}
+.divider-label::before, .divider-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
 </style>
 </head>
 <body>
@@ -931,9 +1072,11 @@ footer {
 <nav id="navbar">
   <div class="container">
     <a class="nav-logo" onclick="nav('home')" href="#/">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="2" y1="12" x2="22" y2="12"/><polyline points="12 2 12 8"/><circle cx="12" cy="12" r="2"/>
-        <path d="M12 22 L12 14"/>
+      <svg class="needle-logo-icon" width="18" height="22" viewBox="0 0 18 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="9" cy="5" rx="4" ry="4.5" stroke="currentColor" stroke-width="2"/>
+        <ellipse cx="9" cy="5" rx="1.5" ry="1.8" fill="currentColor" opacity="0.3"/>
+        <rect x="8" y="9" width="2" height="13" rx="1" fill="currentColor"/>
+        <path d="M7 22 L9 27 L11 22 Z" fill="currentColor"/>
       </svg>
       Needle
     </a>
@@ -986,17 +1129,24 @@ footer {
   <!-- ── HERO ───────────────────────────────────────────── -->
   <div class="hero">
     <div class="container">
-      <div class="hero-eyebrow">Local &middot; Private &middot; Instant</div>
-      <h1>Search your codebase like you search the web.</h1>
-      <p>Needle indexes your project and lets you find functions, patterns, and answers in milliseconds — without sending your code anywhere.</p>
+      <div class="hero-eyebrow">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="6"/></svg>
+        Local &middot; Private &middot; Offline-first
+      </div>
+      <h1>Understand any codebase<br>in seconds, not hours.</h1>
+      <p>Needle indexes your project with hybrid BM25 + HNSW vector search, builds a live call graph, and plugs into any AI tool as an MCP server — without sending your code anywhere.</p>
       <div class="hero-actions">
         <button class="btn btn-primary btn-lg" onclick="nav('search')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Try search
+          Try search live
         </button>
         <button class="btn btn-ghost btn-lg" onclick="nav('setup')">Get started →</button>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/somil71/needle" target="_blank">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
       </div>
-      <p class="hero-meta">Works offline. No account. Rust, Python, TypeScript, Go, and more.</p>
+      <p class="hero-meta">8 languages &middot; PDF support &middot; MCP for Claude, Cursor &amp; more &middot; MIT license</p>
 
       <!-- Live demo -->
       <div class="hero-demo">
@@ -1004,7 +1154,7 @@ footer {
           <div class="dots">
             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
           </div>
-          <span class="title">needle — live search</span>
+          <span class="title">needle — live search demo</span>
         </div>
         <div class="hero-demo-search">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1048,48 +1198,85 @@ footer {
           <div class="feature-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </div>
-          <h3>Keyword + semantic search</h3>
-          <p>Search by exact name or describe what you're looking for. BM25 + HNSW vector search merge results so the best match is always first — in under 50 ms.</p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <h3>Hybrid search — BM25 + HNSW</h3>
+          <p>Keyword matches (exact names, tokens) and semantic matches (meaning) fused via Reciprocal Rank Fusion so the best result is always first. Results in &lt;50 ms on 100k+ chunks.</p>
+          <div class="feat-chips">
+            <span class="feat-chip">BM25</span>
+            <span class="feat-chip">HNSW</span>
+            <span class="feat-chip">RRF fusion</span>
+            <span class="feat-chip">&lt;50 ms</span>
           </div>
-          <h3>Knowledge graph</h3>
-          <p>Every function, class, and endpoint as a live node. Filter by type, click to see callers &amp; callees. Run <code>needle graph</code> for a portable D3 file.</p>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">
+          <div class="feature-icon" style="background:rgba(99,102,241,0.12);border-color:rgba(99,102,241,0.25);color:#818cf8;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><line x1="5" y1="7" x2="12" y2="17"/><line x1="19" y1="7" x2="12" y2="17"/><line x1="7" y1="5" x2="17" y2="5"/></svg>
+          </div>
+          <h3>Interactive knowledge graph</h3>
+          <p>Every function, class, struct, and endpoint becomes a node. Edges show calls, imports, and containment. Click a node to see all callers &amp; callees. Filter by kind. Export as a standalone D3 HTML file with <code>needle graph</code>.</p>
+          <div class="feat-chips">
+            <span class="feat-chip">call graph</span>
+            <span class="feat-chip">import graph</span>
+            <span class="feat-chip">D3 export</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.25);color:#10B981;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </div>
-          <h3>Graph report</h3>
-          <p><code>needle report</code> outputs a Markdown file with god nodes (most-connected symbols), module communities, and surprise cross-cluster dependencies.</p>
+          <h3>Architectural graph report</h3>
+          <p><code>needle report</code> writes a Markdown file identifying god nodes (high-degree symbols everything depends on), semantic communities (label propagation clusters), and surprise edges (cross-community calls that reveal hidden coupling).</p>
+          <div class="feat-chips">
+            <span class="feat-chip">god nodes</span>
+            <span class="feat-chip">communities</span>
+            <span class="feat-chip">surprise edges</span>
+          </div>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">
+          <div class="feature-icon" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.25);color:#F59E0B;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
           </div>
-          <h3>MCP for AI agents</h3>
-          <p>Claude, Cursor, Windsurf, Copilot — any MCP client gets <code>search_code</code>, <code>find_callers</code>, <code>get_god_nodes</code>, <code>explain</code>, and 7 more tools.</p>
+          <h3>MCP server for AI agents</h3>
+          <p>Run <code>needle mcp</code> and your AI tool gets 11 tools: <code>search_code</code>, <code>find_callers</code>, <code>find_callees</code>, <code>get_god_nodes</code>, <code>get_endpoints</code>, <code>get_communities</code>, <code>get_surprises</code>, <code>explain</code>, <code>find_similar</code>, <code>get_file_structure</code>, <code>get_stats</code>.</p>
+          <div class="feat-chips">
+            <span class="feat-chip">Claude Code</span>
+            <span class="feat-chip">Cursor</span>
+            <span class="feat-chip">Windsurf</span>
+            <span class="feat-chip">Copilot</span>
+          </div>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">
+          <div class="feature-icon" style="background:rgba(236,72,153,0.1);border-color:rgba(236,72,153,0.25);color:#f472b6;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
           </div>
-          <h3>Ask your codebase</h3>
-          <p>Type a question. Needle retrieves relevant chunks and routes to the best available AI — Anthropic, OpenAI, Groq, or local Ollama — automatically.</p>
+          <h3>Ask your codebase (RAG)</h3>
+          <p>Type a plain-English question. Needle retrieves the top relevant code chunks and passes them as context to the best available LLM — Anthropic Claude, OpenAI, Groq, or local Ollama — automatically, in priority order.</p>
+          <div class="feat-chips">
+            <span class="feat-chip">Claude</span>
+            <span class="feat-chip">OpenAI</span>
+            <span class="feat-chip">Groq</span>
+            <span class="feat-chip">Ollama</span>
+          </div>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">
+          <div class="feature-icon" style="background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.25);color:#06B6D4;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
           </div>
-          <h3>8 languages + PDF</h3>
-          <p>AST-aware chunking for Rust, Python, TypeScript, Go, Java, C, C++, and Markdown. Drop a PDF into your project — it's indexed automatically, no config needed.</p>
+          <h3>8 languages + PDF, auto-indexed</h3>
+          <p>Tree-sitter AST chunking for Rust, Python, TypeScript/JavaScript, Go, Java, C, C++, and Markdown — functions and classes are discrete units, not arbitrary line windows. Drop a PDF in your repo; it's chunked and indexed automatically.</p>
+          <div class="feat-chips">
+            <span class="feat-chip">Rust</span>
+            <span class="feat-chip">Python</span>
+            <span class="feat-chip">TS/JS</span>
+            <span class="feat-chip">Go</span>
+            <span class="feat-chip">Java</span>
+            <span class="feat-chip">C/C++</span>
+            <span class="feat-chip">PDF</span>
+          </div>
         </div>
 
       </div>
@@ -1099,17 +1286,19 @@ footer {
     <div class="section">
       <div class="section-header">
         <h2>Up and running in 3 commands</h2>
-        <p>No Docker. No config files. No cloud signup.</p>
+        <p>No Docker. No config files. No cloud signup needed.</p>
       </div>
       <div class="how-grid">
 
         <div class="how-card">
           <div class="how-card-top">
             <div class="how-num">1</div>
-            <h3>Download &amp; install</h3>
+            <h3>Install the binary</h3>
           </div>
           <div class="terminal-mock">
-            <span class="out"># Download for your OS from the releases page</span><br>
+            <span class="out"># macOS / Linux via cargo:</span><br>
+            <span class="prompt">$</span> <span class="cmd">cargo install needle-search</span><br>
+            <span class="out"># or download from GitHub releases:</span><br>
             <span class="prompt">$</span> <span class="cmd">sudo mv needle /usr/local/bin/</span><br>
             <span class="prompt">$</span> <span class="cmd">needle --version</span><br>
             <span class="out">needle 0.1.0</span>
@@ -1123,10 +1312,11 @@ footer {
           </div>
           <div class="terminal-mock">
             <span class="prompt">$</span> <span class="cmd">needle init ./my-project</span><br>
-            <span class="out">Indexing 847 files...</span><br>
-            <span class="out">Done. 12,340 chunks indexed.</span><br>
+            <span class="out">Scanning 847 files...</span><br>
+            <span class="out">Building AST chunks...  12,340 done</span><br>
+            <span class="out">Building HNSW index...  done</span><br>
             <span class="prompt">$</span> <span class="cmd">needle serve</span><br>
-            <span class="out">Listening on http://localhost:7700</span>
+            <span class="out">Listening on <a style="color:#818cf8">http://localhost:7700</a></span>
           </div>
         </div>
 
@@ -1136,11 +1326,12 @@ footer {
             <h3>Connect your AI tool</h3>
           </div>
           <div class="terminal-mock">
-            <span class="out"># For Claude Code — one command:</span><br>
+            <span class="out"># Claude Code (one command):</span><br>
             <span class="prompt">$</span> <span class="cmd">claude mcp add needle needle mcp</span><br>
             <span class="out">✓ MCP server registered</span><br>
-            <span class="out"># For Cursor, Windsurf, Copilot:</span><br>
-            <span class="out"># see the Setup page →</span>
+            <span class="out"># Cursor / Windsurf / Copilot:</span><br>
+            <span class="out"># Add {"mcpServers":{"needle":{"command":"needle","args":["mcp"]}}}</span><br>
+            <span class="out"># to your .cursor/mcp.json</span>
           </div>
         </div>
 
@@ -1153,41 +1344,481 @@ footer {
         <button class="agent-pill" onclick="nav('setup')">Windsurf</button>
         <button class="agent-pill" onclick="nav('setup')">VS Code Copilot</button>
         <button class="agent-pill" onclick="nav('setup')">Gemini CLI</button>
-        <button class="agent-pill" onclick="nav('setup')">Codex CLI</button>
         <button class="agent-pill" onclick="nav('setup')">Continue.dev</button>
+        <button class="agent-pill" onclick="nav('setup')">Codex CLI</button>
+      </div>
+    </div>
+
+    <!-- ── PLATFORM SETUP ─────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Setup — pick your platform</h2>
+        <p>Same index, four different ways to run Needle.</p>
+      </div>
+
+      <div class="platform-tabs-wrap">
+        <div class="platform-tab-row">
+          <button class="ptab active" onclick="switchPlatform('local',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Local (binary)
+          </button>
+          <button class="ptab" onclick="switchPlatform('cli',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            CLI only
+          </button>
+          <button class="ptab" onclick="switchPlatform('vscode',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-9 9-4-4 9-9z"/><path d="M2 21l4-4 4 4-4 4z" opacity="0.5"/></svg>
+            VS Code
+          </button>
+          <button class="ptab" onclick="switchPlatform('cloud',this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+            Cloud / Docker
+          </button>
+        </div>
+
+        <!-- LOCAL BINARY -->
+        <div id="ptab-local" class="ptab-panel active">
+          <div class="ptab-content">
+            <div class="ptab-grid">
+              <div class="ptab-info">
+                <h3>Run Needle locally</h3>
+                <p>Download the prebuilt binary, index your project, and open the web UI — all in one process. The index stays on your machine at <code>~/.needle/</code>.</p>
+                <div class="pstep-list">
+                  <div class="pstep">
+                    <div class="pstep-num">1</div>
+                    <div>
+                      <h4>Build from source</h4>
+                      <p>Requires Rust 1.75+</p>
+                      <div class="code-copy"><pre><code>git clone https://github.com/somil71/needle
+cd needle
+cargo build --release
+sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">2</div>
+                    <div>
+                      <h4>Index a directory</h4>
+                      <p>Scans files, builds BM25 + HNSW indexes, extracts the call graph.</p>
+                      <div class="code-copy"><pre><code>needle init ~/code/my-project</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">3</div>
+                    <div>
+                      <h4>Open the web UI</h4>
+                      <div class="code-copy"><pre><code>needle serve --port 7700</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <p>Navigate to <code>http://localhost:7700</code> — this page.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ptab-terminal">
+                <div class="t-comment"># Full local workflow</div>
+                <div><span class="t-prompt">$ </span><span class="t-cmd">needle init ./my-repo</span></div>
+                <div class="t-out">Scanning files... 847 found</div>
+                <div class="t-out">Chunking (tree-sitter)... 12,340 chunks</div>
+                <div class="t-out">Building BM25 index...    done</div>
+                <div class="t-out">Building HNSW index...    done</div>
+                <div class="t-out">Extracting call graph...  364 nodes, 548 edges</div>
+                <div class="t-out">Index written to ~/.needle/index/</div>
+                <br>
+                <div><span class="t-prompt">$ </span><span class="t-cmd">needle status</span></div>
+                <div class="t-out">chunks=12340 files=847 nodes=364 endpoints=19</div>
+                <br>
+                <div><span class="t-prompt">$ </span><span class="t-cmd">needle serve</span></div>
+                <div class="t-url">http://localhost:7700</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLI ONLY -->
+        <div id="ptab-cli" class="ptab-panel">
+          <div class="ptab-content">
+            <div class="ptab-grid">
+              <div class="ptab-info">
+                <h3>CLI command reference</h3>
+                <p>All features are available without the web UI. Use Needle as a pure terminal tool in scripts, CI, or headless environments.</p>
+                <div class="pstep-list">
+                  <div class="pstep">
+                    <div class="pstep-num">1</div>
+                    <div>
+                      <h4>Search from the terminal</h4>
+                      <div class="code-copy"><pre><code>needle search "authentication handler" --lang rust
+needle search "retry HTTP" --limit 20</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">2</div>
+                    <div>
+                      <h4>Generate the call graph</h4>
+                      <div class="code-copy"><pre><code>needle graph              # opens in browser
+needle graph -o graph.html  # save standalone file</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">3</div>
+                    <div>
+                      <h4>Write an architecture report</h4>
+                      <div class="code-copy"><pre><code>needle report -o GRAPH_REPORT.md</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <p>Outputs god nodes, communities, and surprise edges as Markdown.</p>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">4</div>
+                    <div>
+                      <h4>Run as MCP server</h4>
+                      <div class="code-copy"><pre><code>needle mcp   # stdio transport, used by AI tools</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ptab-terminal">
+                <div class="t-comment"># Full command list</div>
+                <div><span class="t-prompt">$ </span><span class="t-cmd">needle --help</span></div>
+                <div class="t-out">Commands:</div>
+                <div class="t-out">  init      Index one or more directories</div>
+                <div class="t-out">  reindex   Re-scan and rebuild the index</div>
+                <div class="t-out">  search    Hybrid keyword + semantic search</div>
+                <div class="t-out">  serve     Start the web UI server</div>
+                <div class="t-out">  graph     Generate call-graph HTML</div>
+                <div class="t-out">  report    Write architecture report (MD)</div>
+                <div class="t-out">  mcp       Start the MCP stdio server</div>
+                <div class="t-out">  status    Show index stats</div>
+                <div class="t-out">  bench     Run performance benchmarks</div>
+                <div class="t-out">  config    Edit needle.toml</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VS CODE -->
+        <div id="ptab-vscode" class="ptab-panel">
+          <div class="ptab-content">
+            <div class="ptab-grid">
+              <div class="ptab-info">
+                <h3>VS Code extension</h3>
+                <p>The Needle VS Code extension adds a sidebar panel, inline search, and wires up the MCP server automatically — no separate terminal needed.</p>
+                <div class="pstep-list">
+                  <div class="pstep">
+                    <div class="pstep-num">1</div>
+                    <div>
+                      <h4>Install the extension</h4>
+                      <p>Search <strong>"Needle Code Search"</strong> in the VS Code Marketplace, or install from VSIX:</p>
+                      <div class="code-copy"><pre><code>code --install-extension needle-vscode.vsix</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">2</div>
+                    <div>
+                      <h4>Open your workspace</h4>
+                      <p>The extension auto-detects <code>~/.needle/index/</code>. If no index exists, it prompts you to run <code>needle init</code>.</p>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">3</div>
+                    <div>
+                      <h4>Enable MCP for Copilot</h4>
+                      <p>In VS Code settings, add Needle to your MCP servers configuration for GitHub Copilot Chat:</p>
+                      <div class="code-copy"><pre><code>// .vscode/settings.json
+{
+  "github.copilot.chat.mcp.servers": {
+    "needle": {
+      "command": "needle",
+      "args": ["mcp"]
+    }
+  }
+}</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ptab-terminal">
+                <div class="t-comment"># Cursor / Windsurf config</div>
+                <div class="t-comment"># .cursor/mcp.json</div>
+                <br>
+                <div class="t-out">{</div>
+                <div class="t-out"> "mcpServers": {</div>
+                <div class="t-out">   "needle": {</div>
+                <div class="t-out">     "command": "needle",</div>
+                <div class="t-out">     "args": ["mcp"]</div>
+                <div class="t-out">   }</div>
+                <div class="t-out"> }</div>
+                <div class="t-out">}</div>
+                <br>
+                <div class="t-comment"># Claude Code (one command)</div>
+                <div><span class="t-prompt">$ </span><span class="t-cmd">claude mcp add needle needle mcp</span></div>
+                <div class="t-out">✓ MCP server "needle" registered</div>
+                <br>
+                <div class="t-comment"># Gemini CLI / Codex CLI</div>
+                <div class="t-out">Add to your ~/.config/mcp/config.json</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLOUD -->
+        <div id="ptab-cloud" class="ptab-panel">
+          <div class="ptab-content">
+            <div class="ptab-grid">
+              <div class="ptab-info">
+                <h3>Deploy to the cloud</h3>
+                <p>Self-host Needle on Railway, Render, or any Docker host. The cloud mode adds GitHub OAuth, per-user API keys, and a shared index over multiple repos.</p>
+                <div class="pstep-list">
+                  <div class="pstep">
+                    <div class="pstep-num">1</div>
+                    <div>
+                      <h4>Build the Docker image</h4>
+                      <div class="code-copy"><pre><code>docker build -t needle .
+docker run -p 8080:8080 \
+  -v needle_data:/data needle</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">2</div>
+                    <div>
+                      <h4>Deploy to Railway</h4>
+                      <div class="code-copy"><pre><code>railway login
+railway init
+railway up</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                      <p>Set <code>DATA_DIR=/data</code> and mount a persistent volume for the SQLite DB.</p>
+                    </div>
+                  </div>
+                  <div class="pstep">
+                    <div class="pstep-num">3</div>
+                    <div>
+                      <h4>Configure GitHub OAuth</h4>
+                      <p>Set environment variables:</p>
+                      <div class="code-copy"><pre><code>GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+SESSION_SECRET=...
+BASE_URL=https://your-domain.com</code></pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="ptab-terminal">
+                <div class="t-comment"># Dockerfile (already in repo)</div>
+                <div class="t-out">FROM rust:1.88 AS builder</div>
+                <div class="t-out">COPY . .</div>
+                <div class="t-out">RUN cargo build --release</div>
+                <br>
+                <div class="t-out">FROM debian:bookworm-slim</div>
+                <div class="t-out">COPY --from=builder /app/target/</div>
+                <div class="t-out">  release/needle /usr/local/bin/</div>
+                <div class="t-out">EXPOSE 8080</div>
+                <div class="t-out">CMD ["needle", "serve"]</div>
+                <br>
+                <div class="t-comment"># Cloud features enabled</div>
+                <div class="t-out">✓ GitHub OAuth login</div>
+                <div class="t-out">✓ Per-user API keys</div>
+                <div class="t-out">✓ Multi-repo support</div>
+                <div class="t-out">✓ Persistent SQLite (mounted)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
     <!-- ── PRIVATE BY DESIGN ───────────────────────────── -->
     <div class="section">
       <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="feature-card" style="border-color: transparent; background: transparent; padding: 12px 0;">
-          <div class="feature-icon" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.2); color: #10B981;">
+        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
+          <div class="feature-icon" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.2);color:#10B981;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
           <h3>Your code never leaves</h3>
-          <p>The index lives in <code>~/.needle/</code>. No telemetry, no analytics, no servers. Runs fully offline.</p>
+          <p>Index lives in <code>~/.needle/</code>. No telemetry, no analytics, no servers. 100% offline.</p>
         </div>
-        <div class="feature-card" style="border-color: transparent; background: transparent; padding: 12px 0;">
-          <div class="feature-icon" style="background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2); color: #F59E0B;">
+        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
+          <div class="feature-icon" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.2);color:#F59E0B;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           </div>
-          <h3>Instant results</h3>
-          <p>Searches return in under 50ms. The HNSW vector index is built entirely in memory with no network round-trips.</p>
+          <h3>Sub-50ms searches</h3>
+          <p>HNSW index lives in memory. BM25 uses inverted postings lists. No network round-trips ever.</p>
         </div>
-        <div class="feature-card" style="border-color: transparent; background: transparent; padding: 12px 0;">
-          <div class="feature-icon" style="background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.2); color: #818cf8;">
+        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
+          <div class="feature-icon" style="background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.2);color:#818cf8;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           </div>
-          <h3>Language-aware</h3>
-          <p>Chunks code by functions and classes, not line counts. Understands Rust, Python, TypeScript, Go, C, C++, Java, and more.</p>
+          <h3>AST-aware chunking</h3>
+          <p>Chunks by functions and classes, not arbitrary line windows. Meaning-preserving units, every time.</p>
         </div>
-        <div class="feature-card" style="border-color: transparent; background: transparent; padding: 12px 0;">
-          <div class="feature-icon" style="background: rgba(236,72,153,0.1); border-color: rgba(236,72,153,0.2); color: #f472b6;">
+        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
+          <div class="feature-icon" style="background:rgba(236,72,153,0.1);border-color:rgba(236,72,153,0.2);color:#f472b6;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
           </div>
           <h3>Free &amp; open source</h3>
-          <p>No paid tiers. No feature limits. Self-host it, fork it, or contribute — the full source is on GitHub.</p>
+          <p>No paid tiers. No feature limits. MIT license. Fork it, self-host it, contribute.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FAQ ───────────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Frequently Asked Questions</h2>
+        <p>Everything you wanted to know, answered.</p>
+      </div>
+      <div class="faq-list">
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Is my code ever sent to the cloud?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p><strong>No — never.</strong> Needle runs entirely on your machine. The index is built locally and stored in <code>~/.needle/index/</code>. The web UI is served by a local process on <code>localhost:7700</code>. No file content, metadata, or telemetry is sent anywhere.</p>
+            <p>The only time network traffic occurs is if you use the <em>Ask</em> feature and have an API key configured for an external LLM (Claude, OpenAI, Groq). In that case, only your question and the retrieved code snippets are sent to that provider — and only when you click Ask.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            What does "hybrid search" actually mean?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>Hybrid search combines two independent retrieval methods and merges their results:</p>
+            <ul>
+              <li><strong>BM25 (keyword)</strong> — exact token matching. Great for finding a specific function name, a variable, or a unique error string.</li>
+              <li><strong>HNSW vector search (semantic)</strong> — embedding-based similarity. Great for conceptual queries like "retry logic", "auth middleware", or "parse JSON payload".</li>
+            </ul>
+            <p>Results are merged with Reciprocal Rank Fusion (RRF), which rewards chunks that score highly in <em>both</em> methods. A chunk that's a perfect keyword match AND semantically close will rank #1 every time.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Which languages are supported?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>Needle uses Tree-sitter grammars for AST-aware chunking across 8 languages:</p>
+            <ul>
+              <li><strong>Rust</strong> — functions, structs, impls, traits</li>
+              <li><strong>Python</strong> — functions, classes, methods</li>
+              <li><strong>TypeScript / JavaScript</strong> — functions, classes, arrow functions</li>
+              <li><strong>Go</strong> — functions, types, interfaces</li>
+              <li><strong>Java</strong> — classes, methods</li>
+              <li><strong>C / C++</strong> — functions, struct definitions</li>
+              <li><strong>Markdown</strong> — section-by-section prose chunking</li>
+            </ul>
+            <p>PDF files are also supported — they're text-extracted and chunked by paragraph automatically. Any other file type falls back to sliding-window line chunking.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            What is the MCP server and how do I use it?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>MCP (Model Context Protocol) is a standard that lets AI tools call external tools. Running <code>needle mcp</code> starts a stdio MCP server that exposes 11 tools to any compatible AI client.</p>
+            <p>For <strong>Claude Code</strong>: <code>claude mcp add needle needle mcp</code></p>
+            <p>For <strong>Cursor / Windsurf</strong>: add <code>{"mcpServers": {"needle": {"command": "needle", "args": ["mcp"]}}}</code> to <code>.cursor/mcp.json</code> or <code>.windsurf/mcp.json</code></p>
+            <p>For <strong>VS Code Copilot</strong>: add to <code>.vscode/settings.json</code> under <code>github.copilot.chat.mcp.servers</code>.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            How does the knowledge graph work?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>During indexing, Needle runs a multi-pass graph extraction over your source files:</p>
+            <ul>
+              <li><strong>Pass 1 — definition extraction</strong>: finds every function, method, class, struct, trait, and module.</li>
+              <li><strong>Pass 1.5 — endpoint detection</strong>: finds Axum <code>.route()</code>, Express <code>app.get()</code>, etc. and promotes matching functions to endpoint nodes.</li>
+              <li><strong>Pass 2 — call/import extraction</strong>: finds every function call, import, and use-statement, resolving them to the nodes found in Pass 1.</li>
+            </ul>
+            <p>The resulting graph has nodes (functions, classes, endpoints, modules) and edges (calls, imports, contains). The web UI renders it with D3 force simulation. You can also export it with <code>needle graph</code>.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            Do I need an API key for the AI features?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>No — all search, graph, and report features work completely offline with no API keys. The <strong>Ask</strong> feature (RAG over LLM) is the only thing that needs one.</p>
+            <p>Needle checks for API keys in this priority order: <code>ANTHROPIC_API_KEY</code> → <code>OPENAI_API_KEY</code> → <code>GROQ_API_KEY</code> → local Ollama (no key needed). If none are set, the Ask tab shows a message to configure one.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            How big can the index get? Will it slow down?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>Needle is designed for codebases of 10k–500k chunks (roughly 1,000–50,000 source files). Query latency stays under 50ms (p50) because both indexes are memory-mapped and never hit disk during search.</p>
+            <p>Memory usage: roughly 2–3 MB per 1,000 chunks for the HNSW index, plus ~300 KB per 1,000 chunks for BM25 postings. A 100k-chunk codebase uses ~300 MB RAM total — well within modern laptops.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-q" onclick="toggleFaq(this)">
+            What's a "god node" and why does it matter?
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-a">
+            <p>A god node is a symbol (function, module, class) with unusually high degree in the call graph — many other things depend on it. In Needle's own codebase, <code>graph/mod.rs</code> has degree 51, meaning 51 other nodes call or import it directly.</p>
+            <p>God nodes are architectural load-bearers: changing them has the widest blast radius. They're the first thing to review when refactoring, and the last thing you want as a cyclic dependency. <code>needle report</code> ranks them by degree so you can see them at a glance.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── ABOUT ──────────────────────────────────────────── -->
+    <div class="section about-section">
+      <div class="about-grid">
+        <div class="about-left">
+          <h2>Built by one developer, for every developer.</h2>
+          <p>Needle started as a personal frustration: existing code search tools either required uploading your source to a cloud service, needed complex infrastructure, or gave shallow keyword results that missed the actual intent.</p>
+          <p>The goal was a single binary that indexes any local codebase, runs an actual HNSW vector index, builds a real call graph with Axum/Express endpoint detection, and plugs into AI tools as an MCP server — all without sending a single byte of your code anywhere.</p>
+          <p>It's open source, MIT licensed, and actively developed. If you find a bug, have a feature request, or just want to say hi — find me on GitHub or LinkedIn.</p>
+          <div class="social-links">
+            <a class="social-link" href="https://github.com/somil71" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              github.com/somil71
+            </a>
+            <a class="social-link" href="https://linkedin.com/in/somil-jha" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+              linkedin.com/in/somil-jha
+            </a>
+            <a class="social-link" href="mailto:somilwork77@gmail.com">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              somilwork77@gmail.com
+            </a>
+            <a class="social-link" href="https://github.com/somil71/needle" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+              Star on GitHub
+            </a>
+          </div>
+        </div>
+        <div class="about-card">
+          <div class="about-avatar">SJ</div>
+          <div>
+            <div class="about-name">Somil Jha</div>
+            <div class="about-role">CS + AI/ML · IILM University</div>
+          </div>
+          <div style="font-size:0.875rem;color:var(--text-2);line-height:1.6;">
+            Building production-grade systems end-to-end. GDG Campus Lead. Two-time SIH winner.
+          </div>
+          <div class="about-tag-row">
+            <span class="about-tag">Rust</span>
+            <span class="about-tag">Python</span>
+            <span class="about-tag">TypeScript</span>
+            <span class="about-tag">AI/ML</span>
+            <span class="about-tag">Delhi</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1198,8 +1829,16 @@ footer {
     <div class="container">
       <div class="footer-inner">
         <div class="footer-brand">
-          <span class="footer-logo">Needle</span>
-          <span class="footer-tagline">Local-first code search. No cloud required.</span>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <svg class="needle-logo-icon" width="14" height="18" viewBox="0 0 18 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="9" cy="5" rx="4" ry="4.5" stroke="currentColor" stroke-width="2"/>
+              <ellipse cx="9" cy="5" rx="1.5" ry="1.8" fill="currentColor" opacity="0.3"/>
+              <rect x="8" y="9" width="2" height="13" rx="1" fill="currentColor"/>
+              <path d="M7 22 L9 27 L11 22 Z" fill="currentColor"/>
+            </svg>
+            <span class="footer-logo">Needle</span>
+          </div>
+          <span class="footer-tagline">Local-first code search &amp; graph analysis.<br>No cloud. No telemetry. MIT license.</span>
         </div>
         <div class="footer-col">
           <div class="footer-col-title">Product</div>
@@ -1208,20 +1847,30 @@ footer {
             <a href="#/search" onclick="nav('search')">Search</a>
             <a href="#/graph" onclick="nav('graph')">Knowledge Graph</a>
             <a href="#/index" onclick="nav('index')">Index</a>
+            <a href="#/download" onclick="nav('download')">Download</a>
           </div>
         </div>
         <div class="footer-col">
           <div class="footer-col-title">Developers</div>
           <div class="footer-links">
-            <a href="#/setup" onclick="nav('setup')">Get Started</a>
-            <a href="#/download" onclick="nav('download')">Download</a>
-            <a href="https://github.com/your-org/needle" target="_blank">GitHub</a>
-            <a href="https://github.com/your-org/needle/issues" target="_blank">Report a bug</a>
+            <a href="#/setup" onclick="nav('setup')">Setup guide</a>
+            <a href="https://github.com/somil71/needle" target="_blank" rel="noopener">GitHub repository</a>
+            <a href="https://github.com/somil71/needle/issues" target="_blank" rel="noopener">Report a bug</a>
+            <a href="https://github.com/somil71/needle/blob/main/README.md" target="_blank" rel="noopener">README</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Author</div>
+          <div class="footer-links">
+            <a href="https://github.com/somil71" target="_blank" rel="noopener">GitHub · somil71</a>
+            <a href="https://linkedin.com/in/somil-jha" target="_blank" rel="noopener">LinkedIn · Somil Jha</a>
+            <a href="mailto:somilwork77@gmail.com">somilwork77@gmail.com</a>
+            <a href="https://github.com/somil71/needle/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
           </div>
         </div>
       </div>
       <div class="footer-bottom">
-        <span class="footer-copy">© 2025 Needle. Open source under MIT license.</span>
+        <span class="footer-copy">© 2026 Somil Jha. Open source under MIT license.</span>
         <span class="footer-status">
           <span class="dot" id="footer-dot"></span>
           <span id="footer-status-text">Checking status…</span>
@@ -3319,6 +3968,24 @@ window.nav = function(page) {
   _origNav(page);
   if (page === 'graph') loadGraph();
 };
+
+// ── Platform tabs ─────────────────────────────────────────
+function switchPlatform(id, btn) {
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ptab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const panel = document.getElementById('ptab-' + id);
+  if (panel) panel.classList.add('active');
+}
+
+// ── FAQ accordion ─────────────────────────────────────────
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
+  if (!isOpen) item.classList.add('open');
+}
+
 </script>
 </body>
 </html>
