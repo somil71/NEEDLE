@@ -38,6 +38,7 @@ pub enum Language {
     Json,
     Dockerfile,
     Shell,
+    Pdf,
 }
 
 impl Language {
@@ -58,6 +59,7 @@ impl Language {
             "json" => Some(Language::Json),
             "dockerfile" => Some(Language::Dockerfile),
             "sh" | "bash" | "zsh" => Some(Language::Shell),
+            "pdf" => Some(Language::Pdf),
             _ => None,
         }
     }
@@ -78,6 +80,7 @@ impl Language {
             "yaml" | "yml" => Some(Language::Yaml),
             "json" => Some(Language::Json),
             "sh" | "bash" | "shell" => Some(Language::Shell),
+            "pdf" => Some(Language::Pdf),
             _ => None,
         }
     }
@@ -99,6 +102,7 @@ impl Language {
             Language::Json => "JSON",
             Language::Dockerfile => "Dockerfile",
             Language::Shell => "Shell",
+            Language::Pdf => "PDF",
         }
     }
 
@@ -116,7 +120,7 @@ impl Language {
             Language::Yaml => "language-yaml",
             Language::Json => "language-json",
             Language::Shell => "language-bash",
-            Language::PlainText | Language::Dockerfile => "language-plaintext",
+            Language::PlainText | Language::Dockerfile | Language::Pdf => "language-plaintext",
         }
     }
 
@@ -137,6 +141,7 @@ impl Language {
             Language::Json => "json",
             Language::Dockerfile => "dockerfile",
             Language::Shell => "sh",
+            Language::Pdf => "pdf",
         }
     }
 }

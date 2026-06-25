@@ -81,6 +81,13 @@ enum Commands {
         #[arg(long)]
         no_open: bool,
     },
+
+    /// Generate a Markdown report: god nodes, communities, and surprise edges
+    Report {
+        /// Output file path (default: GRAPH_REPORT.md)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -106,6 +113,7 @@ async fn main() -> Result<()> {
         Commands::Watch => cli::watch::run().await?,
         Commands::Mcp => cli::mcp::run().await?,
         Commands::Serve { port, no_open } => cli::serve::run(port, no_open).await?,
+        Commands::Report { output } => cli::report::run(output).await?,
     }
 
     Ok(())

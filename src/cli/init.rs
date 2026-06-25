@@ -83,9 +83,12 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
     let file_entries: Vec<(PathBuf, Language, String)> = all_files
         .iter()
         .filter_map(|(path, lang)| {
-            std::fs::read_to_string(path)
-                .ok()
-                .map(|content| (path.clone(), *lang, content))
+            let content = if *lang == Language::Pdf {
+                pdf_extract::extract_text(path).ok()?
+            } else {
+                std::fs::read_to_string(path).ok()?
+            };
+            Some((path.clone(), *lang, content))
         })
         .collect();
 
@@ -252,9 +255,9 @@ fn collect_files(dir: &Path, config: &Config) -> Vec<(PathBuf, Language)> {
             let path = clean_path(e.path().to_path_buf());
             let ext = path.extension()?.to_str()?;
             let lang = Language::from_extension(ext)?;
-            // Skip very large files (>1MB)
             let meta = std::fs::metadata(&path).ok()?;
-            if meta.len() > 1_000_000 {
+            let size_limit = if lang == Language::Pdf { 20_000_000 } else { 1_000_000 };
+            if meta.len() > size_limit {
                 return None;
             }
             Some((path, lang))

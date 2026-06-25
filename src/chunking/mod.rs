@@ -22,7 +22,7 @@ pub fn detect_chunker(language: Language) -> Box<dyn Chunker> {
         | Language::C
         | Language::Cpp => Box::new(code::CodeChunker),
 
-        Language::Markdown | Language::PlainText => Box::new(prose::ProseChunker),
+        Language::Markdown | Language::PlainText | Language::Pdf => Box::new(prose::ProseChunker),
 
         // Config/data files: treat as prose (top-level key blocks)
         Language::Toml | Language::Yaml | Language::Json | Language::Shell
