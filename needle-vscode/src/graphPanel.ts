@@ -140,7 +140,17 @@ let filters=new Set(['function','method','class','struct','trait','endpoint','mo
 let term='', sim, svg, g, lSel, nSel, tSel;
 
 document.getElementById('stats').textContent=(STATS.total_nodes||ALL_N.length)+' nodes · '+(STATS.total_edges||ALL_E.length)+' edges · '+(STATUS.total_files||0)+' files';
-buildFilters(); render();
+buildFilters();
+// Defer render until the SVG has a real layout size, otherwise nodes are
+// placed into a 0x0 viewport and nothing is visible. Retry on the next frame
+// until the canvas has dimensions. Surface a clear message if d3 is missing.
+function boot(){
+  if(typeof d3==='undefined'){document.getElementById('canvas').insertAdjacentHTML('beforeend','<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#f59e0b;font-size:13px">Graph library failed to load.</div>');return;}
+  const el=document.getElementById('svg');
+  if(!el||!el.clientWidth||!el.clientHeight){setTimeout(boot,50);return;}
+  render();
+}
+boot();
 
 function buildFilters(){const w=document.getElementById('filters');
 [['endpoint','Endpoints ('+(STATS.endpoints||0)+')'],['class','Classes ('+(STATS.classes||0)+')'],['function','Functions ('+(STATS.functions||0)+')'],['method','Methods ('+(STATS.methods||0)+')'],['module','Modules ('+(STATS.modules||0)+')']]
@@ -155,10 +165,12 @@ function rerender(){if(!g)return;const t=term.toLowerCase();
 const vn=ALL_N.filter(n=>filters.has(n.kind)&&(!t||n.name.toLowerCase().includes(t)||n.file_path.toLowerCase().includes(t)));
 const vi=new Set(vn.map(n=>n.id));const ve=ALL_E.filter(e=>e.kind!=='contains'&&vi.has(e.from)&&vi.has(e.to));
 const deg={};ve.forEach(e=>{deg[e.from]=(deg[e.from]||0)+1;deg[e.to]=(deg[e.to]||0)+1;});
+// d3.forceLink resolves link.source/link.target — the graph uses from/to, so map.
+const links=ve.map(e=>({source:e.from,target:e.to,kind:e.kind}));
 const el=document.getElementById('svg');const W=el.clientWidth||900,H=el.clientHeight||600;if(sim)sim.stop();
-sim=d3.forceSimulation(vn).force('link',d3.forceLink(ve).id(d=>d.id).distance(60).strength(0.5)).force('charge',d3.forceManyBody().strength(-120)).force('center',d3.forceCenter(W/2,H/2)).force('col',d3.forceCollide().radius(d=>r(d,deg)+4));
+sim=d3.forceSimulation(vn).force('link',d3.forceLink(links).id(d=>d.id).distance(60).strength(0.5)).force('charge',d3.forceManyBody().strength(-120)).force('center',d3.forceCenter(W/2,H/2)).force('col',d3.forceCollide().radius(d=>r(d,deg)+4));
 g.selectAll('*').remove();
-lSel=g.append('g').attr('opacity',0.4).selectAll('line').data(ve).join('line').attr('stroke',d=>d.kind==='imports'?'#6366f1':'#555').attr('stroke-width',1).attr('marker-end','url(#arr)');
+lSel=g.append('g').attr('opacity',0.4).selectAll('line').data(links).join('line').attr('stroke',d=>d.kind==='imports'?'#6366f1':'#555').attr('stroke-width',1).attr('marker-end','url(#arr)');
 nSel=g.append('g').selectAll('circle').data(vn).join('circle').attr('r',d=>r(d,deg)).attr('fill',d=>COLORS[d.kind]||'#888').attr('stroke','#1a1a1a').attr('stroke-width',1.5).attr('cursor','pointer').on('click',(_,d)=>pick(d,deg,ve))
 .call(d3.drag().on('start',(e,d)=>{if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;}).on('drag',(e,d)=>{d.fx=e.x;d.fy=e.y;}).on('end',(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}));
 nSel.append('title').text(d=>d.name+' ('+d.kind+')\\n'+d.file_path+':'+d.line_start);
