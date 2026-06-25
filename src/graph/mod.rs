@@ -131,6 +131,16 @@ pub fn extract(file_entries: &[(PathBuf, Language, String)]) -> CodeGraph {
         for def in extract_defs(content, *lang) {
             let node_id = nodes.len() as u32;
             name_index.entry(def.name.clone()).or_default().push(node_id);
+            // Rust methods are stored qualified (`Type::method`), but call sites emit
+            // the bare segment (`self.method()`, `x.method()`, `Type::method()` all
+            // resolve to `method` in find_rust_calls). Index the bare name too so
+            // method calls actually link. Ambiguity (same bare name in many types) is
+            // handled downstream by same-file preference + SKIP_CROSS_MODULE.
+            if let Some(bare) = def.name.rsplit("::").next() {
+                if bare != def.name.as_str() {
+                    name_index.entry(bare.to_string()).or_default().push(node_id);
+                }
+            }
             edges.push(GraphEdge { from: module_id, to: node_id, kind: EdgeKind::Contains });
             nodes.push(GraphNode {
                 id: node_id,
@@ -216,7 +226,14 @@ pub fn extract(file_entries: &[(PathBuf, Language, String)]) -> CodeGraph {
                             .copied()
                     };
                     if let Some(callee_id) = callee_id {
-                        edges.push(GraphEdge { from: caller_id, to: callee_id, kind: EdgeKind::Calls });
+                        // Skip self-loops. The name guard above misses them because the
+                        // caller name is qualified (`Type::method`) while the callee is
+                        // bare (`method`), so a method resolving its own bare name — or a
+                        // call to a different type's same-named method in the same file —
+                        // would otherwise create a node→itself edge.
+                        if callee_id != caller_id {
+                            edges.push(GraphEdge { from: caller_id, to: callee_id, kind: EdgeKind::Calls });
+                        }
                     }
                 }
             }
