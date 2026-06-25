@@ -88,6 +88,13 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
     },
+
+    /// Export an interactive D3 knowledge graph visualization to graph.html
+    Graph {
+        /// Output file path (default: graph.html)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -114,6 +121,7 @@ async fn main() -> Result<()> {
         Commands::Mcp => cli::mcp::run().await?,
         Commands::Serve { port, no_open } => cli::serve::run(port, no_open).await?,
         Commands::Report { output } => cli::report::run(output).await?,
+        Commands::Graph  { output } => cli::graph::run(output).await?,
     }
 
     Ok(())

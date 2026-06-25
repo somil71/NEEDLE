@@ -1,5 +1,6 @@
 pub mod bench;
 pub mod config;
+pub mod graph;
 pub mod init;
 pub mod mcp;
 pub mod reindex;

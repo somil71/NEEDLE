@@ -196,6 +196,8 @@ fn extract_defs(content: &str, lang: Language) -> Vec<RawDef> {
         Language::TypeScript | Language::JavaScript => extract_ts_defs(content),
         Language::Rust => extract_rust_defs(content),
         Language::Go => extract_go_defs(content),
+        Language::Java => extract_java_defs(content),
+        Language::C | Language::Cpp => extract_cpp_defs(content),
         _ => vec![],
     }
 }
@@ -213,6 +215,9 @@ fn extract_calls(content: &str, lang: Language, known: &HashSet<String>) -> Vec<
     match lang {
         Language::Python => extract_python_calls(content, known),
         Language::TypeScript | Language::JavaScript => extract_ts_calls(content, known),
+        Language::Rust => extract_rust_calls(content, known),
+        Language::Java => extract_java_calls(content, known),
+        Language::C | Language::Cpp => extract_cpp_calls(content, known),
         _ => vec![],
     }
 }
@@ -704,6 +709,111 @@ fn extract_rust_mod_decls(content: &str) -> Vec<String> {
     out
 }
 
+fn extract_rust_calls(content: &str, known: &HashSet<String>) -> Vec<(String, Vec<String>)> {
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(tree_sitter_rust::language()).is_err() {
+        return vec![];
+    }
+    let tree = match parser.parse(content, None) {
+        Some(t) => t,
+        None => return vec![],
+    };
+    let src = content.as_bytes();
+    let mut out = Vec::new();
+    collect_fn_calls_rust(&tree.root_node(), src, known, &mut out, None);
+    out
+}
+
+fn collect_fn_calls_rust(
+    node: &tree_sitter::Node,
+    src: &[u8],
+    known: &HashSet<String>,
+    out: &mut Vec<(String, Vec<String>)>,
+    impl_type: Option<&str>,
+) {
+    match node.kind() {
+        "impl_item" => {
+            let type_name = node
+                .child_by_field_name("type")
+                .map(|n| txt(n, src).to_string())
+                .unwrap_or_default();
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                collect_fn_calls_rust(&child, src, known, out, Some(&type_name));
+            }
+            return;
+        }
+        "function_item" => {
+            let fn_name = node
+                .child_by_field_name("name")
+                .map(|n| txt(n, src).to_string())
+                .unwrap_or_default();
+            if !fn_name.is_empty() {
+                let qualified = match impl_type {
+                    Some(t) if !t.is_empty() => format!("{t}::{fn_name}"),
+                    _ => fn_name,
+                };
+                if let Some(body) = node.child_by_field_name("body") {
+                    let mut calls = Vec::new();
+                    find_rust_calls(&body, src, known, &mut calls);
+                    calls.sort_unstable();
+                    calls.dedup();
+                    if !calls.is_empty() {
+                        out.push((qualified, calls));
+                    }
+                }
+            }
+            return;
+        }
+        _ => {}
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        collect_fn_calls_rust(&child, src, known, out, impl_type);
+    }
+}
+
+fn find_rust_calls(node: &tree_sitter::Node, src: &[u8], known: &HashSet<String>, out: &mut Vec<String>) {
+    match node.kind() {
+        "call_expression" => {
+            if let Some(func) = node.child_by_field_name("function") {
+                let name = match func.kind() {
+                    "identifier" => txt(func, src).to_string(),
+                    "scoped_identifier" => {
+                        // last segment of foo::bar::baz
+                        let mut wk = func.walk();
+                        func.children(&mut wk)
+                            .last()
+                            .map(|n| txt(n, src).to_string())
+                            .unwrap_or_default()
+                    }
+                    "field_expression" => func
+                        .child_by_field_name("field")
+                        .map(|n| txt(n, src).to_string())
+                        .unwrap_or_default(),
+                    _ => String::new(),
+                };
+                if !name.is_empty() && known.contains(&name) {
+                    out.push(name);
+                }
+            }
+        }
+        "method_call_expression" => {
+            if let Some(method) = node.child_by_field_name("method") {
+                let name = txt(method, src).to_string();
+                if !name.is_empty() && known.contains(&name) {
+                    out.push(name);
+                }
+            }
+        }
+        _ => {}
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        find_rust_calls(&child, src, known, out);
+    }
+}
+
 // ── Go ────────────────────────────────────────────────────────────────────────
 
 fn extract_go_defs(content: &str) -> Vec<RawDef> {
@@ -774,6 +884,371 @@ fn extract_go_defs(content: &str) -> Vec<RawDef> {
     out
 }
 
+// ── Version bridge ───────────────────────────────────────────────────────────
+// tree-sitter-cpp 0.22 depends on tree-sitter 0.22 while the project uses 0.20.
+// Both Language types are newtype wrappers over `*const TSLanguage` (stable C ABI),
+// so transmuting between them is safe: same pointer, same underlying grammar struct.
+
+fn cpp_language() -> tree_sitter::Language {
+    #[allow(unsafe_code)]
+    unsafe { std::mem::transmute(tree_sitter_cpp::language()) }
+}
+
+// ── Java ──────────────────────────────────────────────────────────────────────
+
+fn extract_java_defs(content: &str) -> Vec<RawDef> {
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(tree_sitter_java::language()).is_err() {
+        return vec![];
+    }
+    let tree = match parser.parse(content, None) {
+        Some(t) => t,
+        None => return vec![],
+    };
+    let src = content.as_bytes();
+    let mut out = Vec::new();
+    walk_java(&tree.root_node(), src, &mut out, false);
+    out
+}
+
+fn walk_java(node: &tree_sitter::Node, src: &[u8], out: &mut Vec<RawDef>, in_class: bool) {
+    match node.kind() {
+        "class_declaration" | "record_declaration" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                out.push(RawDef {
+                    name: txt(n, src).to_string(),
+                    kind: NodeKind::Class,
+                    line_start: node.start_position().row as u32 + 1,
+                    line_end:   node.end_position().row as u32 + 1,
+                    detail: None,
+                });
+            }
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                walk_java(&child, src, out, true);
+            }
+            return;
+        }
+        "interface_declaration" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                out.push(RawDef {
+                    name: txt(n, src).to_string(),
+                    kind: NodeKind::Trait,
+                    line_start: node.start_position().row as u32 + 1,
+                    line_end:   node.end_position().row as u32 + 1,
+                    detail: None,
+                });
+            }
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                walk_java(&child, src, out, true);
+            }
+            return;
+        }
+        "enum_declaration" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                out.push(RawDef {
+                    name: txt(n, src).to_string(),
+                    kind: NodeKind::Struct,
+                    line_start: node.start_position().row as u32 + 1,
+                    line_end:   node.end_position().row as u32 + 1,
+                    detail: None,
+                });
+            }
+        }
+        "method_declaration" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                let name = txt(n, src).to_string();
+                if !name.is_empty() {
+                    // Detect Spring/JAX-RS HTTP annotations from annotations before method
+                    let http = detect_java_http(node, src);
+                    out.push(RawDef {
+                        name,
+                        kind: if http.is_some() { NodeKind::Endpoint } else if in_class { NodeKind::Method } else { NodeKind::Function },
+                        line_start: node.start_position().row as u32 + 1,
+                        line_end:   node.end_position().row as u32 + 1,
+                        detail: http,
+                    });
+                }
+            }
+            return;
+        }
+        "constructor_declaration" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                let name = txt(n, src).to_string();
+                if !name.is_empty() {
+                    out.push(RawDef {
+                        name,
+                        kind: NodeKind::Function,
+                        line_start: node.start_position().row as u32 + 1,
+                        line_end:   node.end_position().row as u32 + 1,
+                        detail: None,
+                    });
+                }
+            }
+            return;
+        }
+        _ => {}
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        walk_java(&child, src, out, in_class);
+    }
+}
+
+fn detect_java_http(node: &tree_sitter::Node, src: &[u8]) -> Option<String> {
+    let http_annotations = ["GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
+        "PatchMapping", "RequestMapping", "GET", "POST", "PUT", "DELETE"];
+    let parent = node.parent()?;
+    let mut c = parent.walk();
+    for sibling in parent.children(&mut c) {
+        if sibling.kind() == "modifiers" || sibling.kind() == "annotation" {
+            let s = txt(sibling, src);
+            for ann in &http_annotations {
+                if s.contains(ann) {
+                    return Some(ann.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn extract_java_calls(content: &str, known: &HashSet<String>) -> Vec<(String, Vec<String>)> {
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(tree_sitter_java::language()).is_err() {
+        return vec![];
+    }
+    let tree = match parser.parse(content, None) {
+        Some(t) => t,
+        None => return vec![],
+    };
+    let src = content.as_bytes();
+    let mut out = Vec::new();
+    collect_fn_calls_java(&tree.root_node(), src, known, &mut out);
+    out
+}
+
+fn collect_fn_calls_java(node: &tree_sitter::Node, src: &[u8], known: &HashSet<String>, out: &mut Vec<(String, Vec<String>)>) {
+    if matches!(node.kind(), "method_declaration" | "constructor_declaration") {
+        let fn_name = node
+            .child_by_field_name("name")
+            .map(|n| txt(n, src).to_string())
+            .unwrap_or_default();
+        if !fn_name.is_empty() {
+            let mut calls = Vec::new();
+            if let Some(body) = node.child_by_field_name("body") {
+                find_java_calls(&body, src, known, &mut calls);
+            }
+            calls.sort_unstable();
+            calls.dedup();
+            if !calls.is_empty() {
+                out.push((fn_name, calls));
+            }
+        }
+        return;
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        collect_fn_calls_java(&child, src, known, out);
+    }
+}
+
+fn find_java_calls(node: &tree_sitter::Node, src: &[u8], known: &HashSet<String>, out: &mut Vec<String>) {
+    if node.kind() == "method_invocation" {
+        if let Some(name_node) = node.child_by_field_name("name") {
+            let name = txt(name_node, src).to_string();
+            if !name.is_empty() && known.contains(&name) {
+                out.push(name);
+            }
+        }
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        find_java_calls(&child, src, known, out);
+    }
+}
+
+// ── C++ ───────────────────────────────────────────────────────────────────────
+
+fn extract_cpp_defs(content: &str) -> Vec<RawDef> {
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(cpp_language()).is_err() {
+        return vec![];
+    }
+    let tree = match parser.parse(content, None) {
+        Some(t) => t,
+        None => return vec![],
+    };
+    let src = content.as_bytes();
+    let mut out = Vec::new();
+    walk_cpp(&tree.root_node(), src, &mut out, false);
+    out
+}
+
+fn walk_cpp(node: &tree_sitter::Node, src: &[u8], out: &mut Vec<RawDef>, in_class: bool) {
+    match node.kind() {
+        "class_specifier" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                out.push(RawDef {
+                    name: txt(n, src).to_string(),
+                    kind: NodeKind::Class,
+                    line_start: node.start_position().row as u32 + 1,
+                    line_end:   node.end_position().row as u32 + 1,
+                    detail: None,
+                });
+            }
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                walk_cpp(&child, src, out, true);
+            }
+            return;
+        }
+        "struct_specifier" => {
+            if let Some(n) = node.child_by_field_name("name") {
+                out.push(RawDef {
+                    name: txt(n, src).to_string(),
+                    kind: NodeKind::Struct,
+                    line_start: node.start_position().row as u32 + 1,
+                    line_end:   node.end_position().row as u32 + 1,
+                    detail: None,
+                });
+            }
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                walk_cpp(&child, src, out, true);
+            }
+            return;
+        }
+        "function_definition" => {
+            // The declarator chain: function_declarator → identifier or qualified_identifier
+            let name = cpp_fn_name(node, src);
+            if !name.is_empty() {
+                out.push(RawDef {
+                    name,
+                    kind: if in_class { NodeKind::Method } else { NodeKind::Function },
+                    line_start: node.start_position().row as u32 + 1,
+                    line_end:   node.end_position().row as u32 + 1,
+                    detail: None,
+                });
+            }
+            return;
+        }
+        _ => {}
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        walk_cpp(&child, src, out, in_class);
+    }
+}
+
+fn cpp_fn_name(node: &tree_sitter::Node, src: &[u8]) -> String {
+    // Walk declarator chain to find the function name
+    if let Some(decl) = node.child_by_field_name("declarator") {
+        return cpp_extract_declarator_name(decl, src);
+    }
+    String::new()
+}
+
+fn cpp_extract_declarator_name(node: tree_sitter::Node, src: &[u8]) -> String {
+    match node.kind() {
+        "function_declarator" => {
+            if let Some(inner) = node.child_by_field_name("declarator") {
+                return cpp_extract_declarator_name(inner, src);
+            }
+        }
+        "identifier" | "field_identifier" => return txt(node, src).to_string(),
+        "qualified_identifier" => {
+            // last segment of ns::Class::method
+            let mut c = node.walk();
+            if let Some(last) = node.children(&mut c).last() {
+                return txt(last, src).to_string();
+            }
+        }
+        "destructor_name" => {
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                if child.kind() == "identifier" {
+                    return format!("~{}", txt(child, src));
+                }
+            }
+        }
+        "pointer_declarator" | "reference_declarator" => {
+            if let Some(inner) = node.child_by_field_name("declarator") {
+                return cpp_extract_declarator_name(inner, src);
+            }
+        }
+        _ => {}
+    }
+    String::new()
+}
+
+fn extract_cpp_calls(content: &str, known: &HashSet<String>) -> Vec<(String, Vec<String>)> {
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(cpp_language()).is_err() {
+        return vec![];
+    }
+    let tree = match parser.parse(content, None) {
+        Some(t) => t,
+        None => return vec![],
+    };
+    let src = content.as_bytes();
+    let mut out = Vec::new();
+    collect_fn_calls_cpp(&tree.root_node(), src, known, &mut out);
+    out
+}
+
+fn collect_fn_calls_cpp(node: &tree_sitter::Node, src: &[u8], known: &HashSet<String>, out: &mut Vec<(String, Vec<String>)>) {
+    if node.kind() == "function_definition" {
+        let fn_name = cpp_fn_name(node, src);
+        if !fn_name.is_empty() {
+            let mut calls = Vec::new();
+            if let Some(body) = node.child_by_field_name("body") {
+                find_cpp_calls(&body, src, known, &mut calls);
+            }
+            calls.sort_unstable();
+            calls.dedup();
+            if !calls.is_empty() {
+                out.push((fn_name, calls));
+            }
+        }
+        return;
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        collect_fn_calls_cpp(&child, src, known, out);
+    }
+}
+
+fn find_cpp_calls(node: &tree_sitter::Node, src: &[u8], known: &HashSet<String>, out: &mut Vec<String>) {
+    if node.kind() == "call_expression" {
+        if let Some(func) = node.child_by_field_name("function") {
+            let name = match func.kind() {
+                "identifier" => txt(func, src).to_string(),
+                "field_expression" => func
+                    .child_by_field_name("field")
+                    .map(|n| txt(n, src).to_string())
+                    .unwrap_or_default(),
+                "qualified_identifier" => {
+                    let mut c = func.walk();
+                    func.children(&mut c)
+                        .last()
+                        .map(|n| txt(n, src).to_string())
+                        .unwrap_or_default()
+                }
+                _ => String::new(),
+            };
+            if !name.is_empty() && known.contains(&name) {
+                out.push(name);
+            }
+        }
+    }
+    let mut c = node.walk();
+    for child in node.children(&mut c) {
+        find_cpp_calls(&child, src, known, out);
+    }
+}
+
 // ── Shared call-extraction ────────────────────────────────────────────────────
 
 fn find_calls(node: &tree_sitter::Node, src: &[u8], known: &HashSet<String>, out: &mut Vec<String>) {
@@ -841,6 +1316,115 @@ fn resolve_import(
     }
 
     None
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+
+/// Label-propagation community detection on Calls + Imports edges (undirected).
+/// Returns map from node_id → community_id (renumbered 0..N).
+pub fn compute_communities(graph: &CodeGraph) -> HashMap<u32, u32> {
+    let n = graph.nodes.len();
+    if n == 0 { return HashMap::new(); }
+
+    // Build undirected adjacency list using Calls + Imports edges only
+    let mut neighbors: HashMap<u32, Vec<u32>> = graph.nodes.iter().map(|n| (n.id, vec![])).collect();
+    for edge in &graph.edges {
+        if matches!(edge.kind, EdgeKind::Calls | EdgeKind::Imports) {
+            neighbors.entry(edge.from).or_default().push(edge.to);
+            neighbors.entry(edge.to).or_default().push(edge.from);
+        }
+    }
+
+    // Initialize: every node = its own community
+    let mut community: HashMap<u32, u32> = graph.nodes.iter().map(|n| (n.id, n.id)).collect();
+
+    for _ in 0..50 {
+        let mut changed = false;
+        let node_ids: Vec<u32> = graph.nodes.iter().map(|n| n.id).collect();
+        for &node_id in &node_ids {
+            let Some(nbrs) = neighbors.get(&node_id) else { continue };
+            if nbrs.is_empty() { continue; }
+
+            let mut freq: HashMap<u32, u32> = HashMap::new();
+            for &nbr in nbrs {
+                if let Some(&c) = community.get(&nbr) {
+                    *freq.entry(c).or_default() += 1;
+                }
+            }
+            if let Some((&best_c, _)) = freq.iter().max_by_key(|&(_, &cnt)| cnt) {
+                if community.get(&node_id) != Some(&best_c) {
+                    community.insert(node_id, best_c);
+                    changed = true;
+                }
+            }
+        }
+        if !changed { break; }
+    }
+
+    // Renumber community IDs to 0..N
+    let mut id_map: HashMap<u32, u32> = HashMap::new();
+    let mut next = 0u32;
+    graph.nodes.iter().map(|node| {
+        let old = community[&node.id];
+        let new = *id_map.entry(old).or_insert_with(|| { let v = next; next += 1; v });
+        (node.id, new)
+    }).collect()
+}
+
+/// Returns the top `limit` nodes sorted by total call-graph degree (in + out).
+/// Module nodes are excluded. Returns Vec<(node_id, degree)>.
+pub fn compute_god_nodes(graph: &CodeGraph, limit: usize) -> Vec<(u32, u32)> {
+    let mut degree: HashMap<u32, u32> = HashMap::new();
+    for edge in &graph.edges {
+        if matches!(edge.kind, EdgeKind::Calls) {
+            *degree.entry(edge.from).or_default() += 1;
+            *degree.entry(edge.to).or_default() += 1;
+        }
+    }
+
+    let mut ranked: Vec<(u32, u32)> = graph.nodes.iter()
+        .filter(|n| !matches!(n.kind, NodeKind::Module))
+        .map(|n| (n.id, *degree.get(&n.id).unwrap_or(&0)))
+        .filter(|&(_, d)| d > 0)
+        .collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1));
+    ranked.truncate(limit);
+    ranked
+}
+
+/// Returns the most surprising cross-community Calls edges — ones that bridge
+/// otherwise disconnected clusters. Rarity (fewer parallel bridges) = higher surprise.
+/// Returns Vec<(from_id, to_id)> up to 15 entries.
+pub fn find_surprise_edges(graph: &CodeGraph, communities: &HashMap<u32, u32>) -> Vec<(u32, u32)> {
+    // Count total cross-community links per (ca, cb) pair
+    let mut cross_count: HashMap<(u32, u32), u32> = HashMap::new();
+    for edge in &graph.edges {
+        if !matches!(edge.kind, EdgeKind::Calls) { continue; }
+        let ca = communities.get(&edge.from).copied().unwrap_or(edge.from);
+        let cb = communities.get(&edge.to).copied().unwrap_or(edge.to);
+        if ca != cb {
+            let key = if ca < cb { (ca, cb) } else { (cb, ca) };
+            *cross_count.entry(key).or_default() += 1;
+        }
+    }
+
+    // Collect edges whose community pair has exactly 1 cross-edge (most surprising)
+    let mut surprises: Vec<(u32, u32, u32)> = graph.edges.iter()
+        .filter(|e| matches!(e.kind, EdgeKind::Calls))
+        .filter_map(|e| {
+            let ca = communities.get(&e.from).copied().unwrap_or(e.from);
+            let cb = communities.get(&e.to).copied().unwrap_or(e.to);
+            if ca == cb { return None; }
+            let key = if ca < cb { (ca, cb) } else { (cb, ca) };
+            let count = *cross_count.get(&key).unwrap_or(&1);
+            Some((e.from, e.to, count))
+        })
+        .collect();
+
+    surprises.sort_by_key(|&(from, to, count)| (count, from, to));
+    surprises.dedup_by_key(|s| (s.0, s.1));
+    surprises.truncate(15);
+    surprises.into_iter().map(|(f, t, _)| (f, t)).collect()
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

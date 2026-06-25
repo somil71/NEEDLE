@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NEEDLE — Knowledge Graph</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; display: flex; height: 100vh; overflow: hidden; }
+
+#sidebar {
+  width: 280px; min-width: 240px; background: #1a1d27; border-right: 1px solid #2d3147;
+  display: flex; flex-direction: column; padding: 16px; gap: 10px; overflow-y: auto; flex-shrink: 0;
+}
+#logo { font-size: 15px; font-weight: 700; color: #7c9fff; letter-spacing: 0.08em; }
+#subtitle { font-size: 11px; color: #475569; }
+#stats { font-size: 11px; color: #94a3b8; background: #12141f; padding: 8px 10px; border-radius: 6px; line-height: 1.9; }
+#search {
+  padding: 7px 10px; background: #12141f; border: 1px solid #2d3147; border-radius: 6px;
+  color: #e2e8f0; font-size: 13px; outline: none; width: 100%;
+}
+#search:focus { border-color: #7c9fff; }
+#edge-filter { display: flex; flex-wrap: wrap; gap: 4px; }
+.ef-btn {
+  font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid;
+  cursor: pointer; background: transparent; font-weight: 600; opacity: 0.95; transition: opacity 0.15s;
+}
+.ef-btn.off { opacity: 0.3; }
+
+#info {
+  font-size: 12px; background: #12141f; border-radius: 6px; padding: 10px;
+  line-height: 1.75; color: #94a3b8; min-height: 90px;
+}
+#info h3 { font-size: 13px; color: #e2e8f0; margin-bottom: 5px; word-break: break-all; }
+.tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-bottom: 5px; }
+
+#legend h4 { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+.legend-row { display: flex; align-items: center; gap: 7px; font-size: 11px; color: #94a3b8; margin-bottom: 3px; }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#toolbar { background: #12141f; border-bottom: 1px solid #2d3147; padding: 6px 14px; display: flex; align-items: center; gap: 10px; font-size: 11px; color: #475569; }
+#toolbar button { background: #1a1d27; border: 1px solid #2d3147; color: #94a3b8; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+#toolbar button:hover { border-color: #7c9fff; color: #7c9fff; }
+svg#graph { flex: 1; }
+
+.link { stroke-opacity: 0.45; fill: none; }
+.link-contains { stroke: #2d3147; stroke-width: 0.7; }
+.link-imports  { stroke: #3b82f6; stroke-width: 1.1; stroke-dasharray: 5 3; }
+.link-calls    { stroke: #f59e0b; stroke-width: 1.3; }
+.link-inherits { stroke: #a78bfa; stroke-width: 1.3; }
+.link.hidden { display: none; }
+
+.node circle { stroke-width: 1.5; cursor: pointer; }
+.node text { font-size: 9px; fill: #64748b; pointer-events: none; }
+.node.selected circle { stroke: #fff !important; stroke-width: 3; }
+.node.faded { opacity: 0.12; }
+.node.highlighted circle { stroke-width: 2.5; }
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="logo">NEEDLE</div>
+  <div id="subtitle">Knowledge Graph</div>
+  <div id="stats">Loading…</div>
+  <input id="search" placeholder="Filter nodes…" autocomplete="off">
+  <div id="edge-filter"></div>
+  <div id="info"><span style="color:#475569">Click a node to inspect it.</span></div>
+  <div id="legend">
+    <h4>Node types</h4>
+    <div class="legend-row"><div class="legend-dot" style="background:#6366f1"></div>module</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#3b82f6"></div>function</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#06b6d4"></div>method</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#f59e0b"></div>class / struct</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#a78bfa"></div>trait</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#ef4444"></div>endpoint</div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="toolbar">
+    <button onclick="resetZoom()">Reset view</button>
+    <button onclick="reheat()">Reheat</button>
+    <span id="node-count"></span>
+  </div>
+  <svg id="graph"></svg>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const GRAPH = __GRAPH_DATA__;
+
+const COLOR = {
+  module:   '#6366f1',
+  function: '#3b82f6',
+  method:   '#06b6d4',
+  class:    '#f59e0b',
+  struct:   '#10b981',
+  trait:    '#a78bfa',
+  endpoint: '#ef4444',
+};
+
+const EDGE_COLORS = { contains: '#2d3147', imports: '#3b82f6', calls: '#f59e0b', inherits: '#a78bfa' };
+const EDGE_LABELS = { contains: 'contains', imports: 'imports', calls: 'calls', inherits: 'inherits' };
+
+// Sidebar stats
+const s = GRAPH.stats;
+document.getElementById('stats').innerHTML =
+  `<b>${s.total_nodes}</b> nodes &nbsp;·&nbsp; <b>${s.total_edges}</b> edges<br>` +
+  `fn <b>${s.functions}</b> &nbsp; methods <b>${s.methods}</b> &nbsp; ` +
+  `classes <b>${s.classes}</b> &nbsp; endpoints <b>${s.endpoints}</b>`;
+
+// Edge filters
+const activeEdges = { contains: false, imports: true, calls: true, inherits: true };
+const efDiv = document.getElementById('edge-filter');
+Object.keys(EDGE_COLORS).forEach(kind => {
+  const btn = document.createElement('button');
+  btn.className = 'ef-btn' + (activeEdges[kind] ? '' : ' off');
+  btn.style.borderColor = EDGE_COLORS[kind];
+  btn.style.color = EDGE_COLORS[kind];
+  btn.textContent = EDGE_LABELS[kind];
+  btn.addEventListener('click', () => {
+    activeEdges[kind] = !activeEdges[kind];
+    btn.classList.toggle('off');
+    updateEdgeVisibility();
+  });
+  efDiv.appendChild(btn);
+});
+
+function updateEdgeVisibility() {
+  linkSel.classed('hidden', d => !activeEdges[d.kind]);
+}
+
+// SVG setup
+const svg = d3.select('#graph');
+const container = svg.append('g');
+
+const zoom = d3.zoom().scaleExtent([0.03, 8]).on('zoom', e => container.attr('transform', e.transform));
+svg.call(zoom);
+
+function resetZoom() { svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity); }
+function reheat() { sim.alpha(0.5).restart(); }
+
+// Clamp w/h
+const W = () => svg.node().clientWidth || 800;
+const H = () => svg.node().clientHeight || 600;
+
+// Build nodes + links (clone so sim can mutate)
+const nodes = GRAPH.nodes.map(d => ({...d}));
+const links = GRAPH.links.map(d => ({...d}));
+
+// Force simulation
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).id(d => d.id)
+    .distance(d => d.kind === 'contains' ? 35 : d.kind === 'imports' ? 90 : 70)
+    .strength(d => d.kind === 'calls' ? 0.4 : d.kind === 'imports' ? 0.25 : 0.15))
+  .force('charge', d3.forceManyBody().strength(d => d.kind === 'module' ? -200 : -80))
+  .force('center', d3.forceCenter(W() / 2, H() / 2))
+  .force('collide', d3.forceCollide(d => radius(d) + 4));
+
+// Arrowhead marker for calls edges
+svg.append('defs').selectAll('marker')
+  .data(['calls', 'imports', 'inherits'])
+  .join('marker')
+  .attr('id', d => `arrow-${d}`)
+  .attr('viewBox', '0 -4 8 8')
+  .attr('refX', 12)
+  .attr('refY', 0)
+  .attr('markerWidth', 5)
+  .attr('markerHeight', 5)
+  .attr('orient', 'auto')
+  .append('path')
+  .attr('fill', d => EDGE_COLORS[d])
+  .attr('d', 'M0,-4L8,0L0,4');
+
+// Links
+const linkSel = container.append('g').selectAll('line')
+  .data(links)
+  .join('line')
+  .attr('class', d => `link link-${d.kind}`)
+  .attr('marker-end', d => d.kind !== 'contains' ? `url(#arrow-${d.kind})` : null);
+
+updateEdgeVisibility();
+
+// Nodes
+const radius = d => d.kind === 'module' ? 9 : d.kind === 'endpoint' ? 7 : 5;
+
+const nodeSel = container.append('g').selectAll('g')
+  .data(nodes)
+  .join('g')
+  .attr('class', 'node')
+  .call(d3.drag()
+    .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }))
+  .on('click', nodeClick)
+  .on('mouseover', (e, d) => { if (!selectedId) highlightNeighbors(d.id, true); })
+  .on('mouseout',  () => { if (!selectedId) clearHighlight(); });
+
+nodeSel.append('circle')
+  .attr('r', radius)
+  .attr('fill', d => COLOR[d.kind] || '#94a3b8')
+  .attr('stroke', d => d3.color(COLOR[d.kind] || '#94a3b8').brighter(0.6).toString())
+  .attr('fill-opacity', 0.85);
+
+nodeSel.append('text')
+  .attr('dy', d => radius(d) + 10)
+  .attr('text-anchor', 'middle')
+  .text(d => d.kind !== 'module' ? d.name : '');
+
+sim.on('tick', () => {
+  linkSel
+    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+});
+
+// Count visible nodes
+sim.on('end', () => {
+  document.getElementById('node-count').textContent = `${nodes.length} nodes rendered`;
+});
+
+// ── Selection & highlighting ───────────────────────────────────────────────────
+
+let selectedId = null;
+
+function neighborSet(id) {
+  const s = new Set([id]);
+  links.forEach(l => {
+    if (l.source.id === id) s.add(l.target.id);
+    if (l.target.id === id) s.add(l.source.id);
+  });
+  return s;
+}
+
+function highlightNeighbors(id, hover) {
+  const nb = neighborSet(id);
+  nodeSel.classed('faded', n => !nb.has(n.id));
+  linkSel.classed('faded', l => l.source.id !== id && l.target.id !== id);
+  if (hover) nodeSel.classed('highlighted', n => n.id === id);
+}
+
+function clearHighlight() {
+  nodeSel.classed('faded highlighted', false);
+  linkSel.classed('faded', false);
+}
+
+function nodeClick(e, d) {
+  e.stopPropagation();
+  if (selectedId === d.id) { selectedId = null; clearHighlight(); showPlaceholder(); return; }
+  selectedId = d.id;
+  nodeSel.classed('selected', n => n.id === d.id);
+  highlightNeighbors(d.id, false);
+  showNodeInfo(d);
+}
+
+svg.on('click', () => { selectedId = null; clearHighlight(); nodeSel.classed('selected', false); showPlaceholder(); });
+
+function showPlaceholder() {
+  document.getElementById('info').innerHTML = '<span style="color:#475569">Click a node to inspect it.</span>';
+}
+
+function showNodeInfo(d) {
+  const callers = links.filter(l => l.target.id === d.id && l.kind === 'calls').map(l => l.source.name);
+  const callees = links.filter(l => l.source.id === d.id && l.kind === 'calls').map(l => l.target.name);
+  const col = COLOR[d.kind] || '#94a3b8';
+  const tag = `<span class="tag" style="background:${col}22;color:${col}">${d.kind}</span>`;
+  const fp  = shortPath(d.file_path);
+  const loc = d.line_start ? `:${d.line_start}` : '';
+  document.getElementById('info').innerHTML = `
+    <h3>${d.name}</h3>
+    ${tag}
+    <div style="color:#475569;font-size:10px;margin-bottom:8px">${fp}${loc}</div>
+    ${callers.length ? `<div style="margin-bottom:5px"><b style="color:#e2e8f0">Called by</b> <span style="color:#64748b">(${callers.length})</span><br><span style="color:#94a3b8">${callers.slice(0,10).join(', ')}${callers.length>10?'…':''}</span></div>` : ''}
+    ${callees.length ? `<div><b style="color:#e2e8f0">Calls</b> <span style="color:#64748b">(${callees.length})</span><br><span style="color:#94a3b8">${callees.slice(0,10).join(', ')}${callees.length>10?'…':''}</span></div>` : ''}
+    ${!callers.length && !callees.length ? '<span style="color:#475569">No call edges.</span>' : ''}
+  `;
+}
+
+function shortPath(p) {
+  if (!p) return '';
+  const parts = p.split(/[/\\]/).filter(Boolean);
+  return parts.length >= 2 ? parts.slice(-2).join('/') : p;
+}
+
+// ── Search filter ──────────────────────────────────────────────────────────────
+
+document.getElementById('search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) { nodeSel.classed('faded', false); document.getElementById('node-count').textContent = `${nodes.length} nodes`; return; }
+  const visible = nodes.filter(n => n.name.toLowerCase().includes(q) || (n.file_path||'').toLowerCase().includes(q));
+  nodeSel.classed('faded', n => !n.name.toLowerCase().includes(q) && !(n.file_path||'').toLowerCase().includes(q));
+  document.getElementById('node-count').textContent = `${visible.length} / ${nodes.length} nodes`;
+});
+</script>
+</body>
+</html>
