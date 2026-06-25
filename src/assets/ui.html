@@ -1296,10 +1296,10 @@ footer {
             <h3>Install the binary</h3>
           </div>
           <div class="terminal-mock">
-            <span class="out"># macOS / Linux via cargo:</span><br>
-            <span class="prompt">$</span> <span class="cmd">cargo install needle-search</span><br>
-            <span class="out"># or download from GitHub releases:</span><br>
-            <span class="prompt">$</span> <span class="cmd">sudo mv needle /usr/local/bin/</span><br>
+            <span class="out"># Build from source (requires Rust 1.75+):</span><br>
+            <span class="prompt">$</span> <span class="cmd">cargo install --git https://github.com/somil71/needle</span><br>
+            <span class="out"># or download prebuilt binary from GitHub releases:</span><br>
+            <span class="prompt">$</span> <span class="cmd">chmod +x needle &amp;&amp; sudo mv needle /usr/local/bin/</span><br>
             <span class="prompt">$</span> <span class="cmd">needle --version</span><br>
             <span class="out">needle 0.1.0</span>
           </div>
@@ -1424,7 +1424,9 @@ sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-bt
                 <div class="t-out">Index written to ~/.needle/index/</div>
                 <br>
                 <div><span class="t-prompt">$ </span><span class="t-cmd">needle status</span></div>
-                <div class="t-out">chunks=12340 files=847 nodes=364 endpoints=19</div>
+                <div class="t-out">Needle 0.1.0 — index status</div>
+                <div class="t-out">&nbsp; Chunks: 12,340 active · 0 tombstoned</div>
+                <div class="t-out">&nbsp; Files:  847 &nbsp;·&nbsp; Disk: 24.1 MB</div>
                 <br>
                 <div><span class="t-prompt">$ </span><span class="t-cmd">needle serve</span></div>
                 <div class="t-url">http://localhost:7700</div>
@@ -1445,7 +1447,7 @@ sudo cp target/release/needle /usr/local/bin/</code></pre><button class="copy-bt
                     <div class="pstep-num">1</div>
                     <div>
                       <h4>Search from the terminal</h4>
-                      <div class="code-copy"><pre><code>needle search "authentication handler" --lang rust
+                      <div class="code-copy"><pre><code>needle search "authentication handler" --lang rs
 needle search "retry HTTP" --limit 20</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
@@ -1478,16 +1480,17 @@ needle graph -o graph.html  # save standalone file</code></pre><button class="co
                 <div class="t-comment"># Full command list</div>
                 <div><span class="t-prompt">$ </span><span class="t-cmd">needle --help</span></div>
                 <div class="t-out">Commands:</div>
-                <div class="t-out">  init      Index one or more directories</div>
-                <div class="t-out">  reindex   Re-scan and rebuild the index</div>
+                <div class="t-out">  init      Build the search index for one or more dirs</div>
                 <div class="t-out">  search    Hybrid keyword + semantic search</div>
-                <div class="t-out">  serve     Start the web UI server</div>
-                <div class="t-out">  graph     Generate call-graph HTML</div>
-                <div class="t-out">  report    Write architecture report (MD)</div>
-                <div class="t-out">  mcp       Start the MCP stdio server</div>
-                <div class="t-out">  status    Show index stats</div>
-                <div class="t-out">  bench     Run performance benchmarks</div>
-                <div class="t-out">  config    Edit needle.toml</div>
+                <div class="t-out">  serve     Launch the web UI in your browser</div>
+                <div class="t-out">  status    Show index health and statistics</div>
+                <div class="t-out">  reindex   Force full re-index of watched dirs</div>
+                <div class="t-out">  watch     Re-index on file changes (auto)</div>
+                <div class="t-out">  graph     Export interactive D3 graph to HTML</div>
+                <div class="t-out">  report    Write architecture report (Markdown)</div>
+                <div class="t-out">  mcp       Start MCP server over stdio</div>
+                <div class="t-out">  bench     Benchmarks: recall, latency, index size</div>
+                <div class="t-out">  config    View or edit configuration</div>
               </div>
             </div>
           </div>
@@ -1505,8 +1508,8 @@ needle graph -o graph.html  # save standalone file</code></pre><button class="co
                     <div class="pstep-num">1</div>
                     <div>
                       <h4>Install the extension</h4>
-                      <p>Search <strong>"Needle Code Search"</strong> in the VS Code Marketplace, or install from VSIX:</p>
-                      <div class="code-copy"><pre><code>code --install-extension needle-vscode.vsix</code></pre><button class="copy-btn">Copy</button></div>
+                      <p>Download <strong>needle-search-0.5.0.vsix</strong> from the <a href="#/download" onclick="nav('download')">releases page</a> and install it:</p>
+                      <div class="code-copy"><pre><code>code --install-extension needle-search-0.5.0.vsix</code></pre><button class="copy-btn">Copy</button></div>
                     </div>
                   </div>
                   <div class="pstep">
@@ -2149,7 +2152,7 @@ sudo mv needle-linux-x64 /usr/local/bin/needle</code></pre><button class="copy-b
           <div class="setup-step-num">1</div>
           <div class="setup-step-body">
             <h3>Clone and install</h3>
-            <div class="code-copy"><pre><code>git clone https://github.com/your-org/needle
+            <div class="code-copy"><pre><code>git clone https://github.com/somil71/needle
 cd needle
 cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
             <p>The binary lands at <code>~/.cargo/bin/needle</code> which is already on your PATH after installing Rust.</p>
@@ -2209,7 +2212,7 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
 
       <!-- Claude Code -->
       <div class="sel-panel active" data-agent="claude">
-        <div class="what-it-does">After this, Claude can run <strong>search_code</strong>, <strong>find_callers</strong>, <strong>get_endpoints</strong> and 4 other tools against your local index automatically.</div>
+        <div class="what-it-does">After this, Claude can run <strong>search_code</strong>, <strong>find_callers</strong>, <strong>find_callees</strong>, <strong>get_endpoints</strong> and 7 other tools against your local index automatically.</div>
         <div class="setup-step">
           <div class="setup-step-num">1</div>
           <div class="setup-step-body">
@@ -2409,7 +2412,7 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
           <div class="setup-step-num">2</div>
           <div class="setup-step-body">
             <h3>What Needle exposes</h3>
-            <p>Your tool gets 7 tools: <strong>search_code</strong>, <strong>find_callers</strong>, <strong>find_callees</strong>, <strong>get_endpoints</strong>, <strong>get_file_structure</strong>, <strong>find_similar</strong>, <strong>get_stats</strong>.</p>
+            <p>Your tool gets 11 tools: <strong>search_code</strong>, <strong>find_callers</strong>, <strong>find_callees</strong>, <strong>get_endpoints</strong>, <strong>get_file_structure</strong>, <strong>find_similar</strong>, <strong>get_stats</strong>, <strong>get_god_nodes</strong>, <strong>get_communities</strong>, <strong>get_surprises</strong>, <strong>explain</strong>.</p>
           </div>
         </div>
       </div>
@@ -2428,10 +2431,10 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
       <div class="setup-step">
         <div class="setup-step-num">1</div>
         <div class="setup-step-body">
-          <h3>Install from the VS Code marketplace</h3>
-          <p>Open VS Code → Extensions panel → search <strong>Needle Search</strong> → Install.</p>
-          <p>Or from the terminal:</p>
-          <div class="code-copy"><pre><code>code --install-extension needle-dev.needle-search</code></pre><button class="copy-btn">Copy</button></div>
+          <h3>Download and install the .vsix</h3>
+          <p>Download <strong>needle-search-0.5.0.vsix</strong> from the <a href="#/download" onclick="nav('download')">releases page</a>, then install it from the terminal:</p>
+          <div class="code-copy"><pre><code>code --install-extension needle-search-0.5.0.vsix</code></pre><button class="copy-btn">Copy</button></div>
+          <p>Or in VS Code: Extensions panel → <strong>⋯ menu</strong> → <em>Install from VSIX…</em></p>
         </div>
       </div>
 
@@ -2478,7 +2481,7 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
         <h3>Windows</h3>
         <p>64-bit. Works on Windows 10 and 11. Download, rename to <code>needle.exe</code>, put it on your PATH.</p>
         <pre><code>needle-windows-x64.exe</code></pre>
-        <a class="btn btn-primary" href="https://github.com/your-org/needle/releases/latest" target="_blank">Download for Windows</a>
+        <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download for Windows</a>
       </div>
 
       <div class="download-card">
@@ -2491,7 +2494,7 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
         <p>Two builds — pick the right one for your Mac.</p>
         <pre><code>needle-macos-arm64   # M1 / M2 / M3
 needle-macos-x64     # Intel</code></pre>
-        <a class="btn btn-primary" href="https://github.com/your-org/needle/releases/latest" target="_blank">Download for macOS</a>
+        <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download for macOS</a>
       </div>
 
       <div class="download-card">
@@ -2503,7 +2506,7 @@ needle-macos-x64     # Intel</code></pre>
         <h3>Linux</h3>
         <p>Static binary built with musl. Works on any x86-64 Linux distro, no glibc version requirement.</p>
         <pre><code>needle-linux-x64</code></pre>
-        <a class="btn btn-primary" href="https://github.com/your-org/needle/releases/latest" target="_blank">Download for Linux</a>
+        <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download for Linux</a>
       </div>
 
       <div class="download-card">
@@ -2514,10 +2517,9 @@ needle-macos-x64     # Intel</code></pre>
         </div>
         <h3>VS Code Extension</h3>
         <p>Search your codebase and browse the knowledge graph from inside VS Code.</p>
-        <pre><code>needle-search-0.1.0.vsix</code></pre>
+        <pre><code>needle-search-0.5.0.vsix</code></pre>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <a class="btn btn-primary" href="https://marketplace.visualstudio.com" target="_blank">Install from Marketplace</a>
-          <a class="btn btn-secondary" href="https://github.com/your-org/needle/releases/latest" target="_blank">Download .vsix</a>
+          <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download .vsix</a>
         </div>
       </div>
 
@@ -2526,7 +2528,7 @@ needle-macos-x64     # Intel</code></pre>
     <div style="margin-top:40px;">
       <h2 style="margin-bottom:12px;">Build from source</h2>
       <p style="margin-bottom:16px;">If you want to build it yourself or contribute, you'll need Rust 1.75+.</p>
-      <div class="code-copy"><pre><code>git clone https://github.com/your-org/needle
+      <div class="code-copy"><pre><code>git clone https://github.com/somil71/needle
 cd needle
 cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
     </div>
