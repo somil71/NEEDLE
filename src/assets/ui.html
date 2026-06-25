@@ -12,39 +12,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0C0C0D;
-  --surface: #18181B;
-  --surface-2: #1F1F23;
-  --border: #27272A;
-  --accent: #7C3AED;
-  --accent-hover: #6D28D9;
+  --bg:            #07080F;
+  --surface:       #0D0F1A;
+  --surface-2:     #131626;
+  --border:        rgba(255,255,255,0.08);
+  --accent:        #7C3AED;
+  --accent-hover:  #6D28D9;
   --accent-subtle: rgba(124,58,237,0.12);
-  --text: #FAFAFA;
-  --text-2: #A1A1AA;
-  --text-3: #71717A;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --error: #EF4444;
-  --code-bg: #111113;
-  --radius: 8px;
-  --radius-lg: 12px;
-  --nav-h: 56px;
-  --font: -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
-  --mono: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+  --accent-glow:   rgba(124,58,237,0.32);
+  --text:          #EDEEF2;
+  --text-2:        #9496A4;
+  --text-3:        #56576A;
+  --success:       #22C55E;
+  --warning:       #F59E0B;
+  --error:         #EF4444;
+  --code-bg:       #07090E;
+  --radius:        6px;
+  --radius-lg:     10px;
+  --nav-h:         56px;
+  --font:          -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono:          "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
 }
 
 html.light {
-  --bg: #FFFFFF;
-  --surface: #F4F4F5;
-  --surface-2: #E4E4E7;
-  --border: #D4D4D8;
-  --accent: #6D28D9;
-  --accent-hover: #5B21B6;
-  --accent-subtle: rgba(109,40,217,0.10);
-  --text: #09090B;
-  --text-2: #52525B;
-  --text-3: #A1A1AA;
-  --code-bg: #F4F4F5;
+  --bg:            #FAFAFA;
+  --surface:       #F2F3F8;
+  --surface-2:     #E8EAF2;
+  --border:        rgba(0,0,0,0.08);
+  --accent:        #6D28D9;
+  --accent-hover:  #5B21B6;
+  --accent-subtle: rgba(109,40,217,0.08);
+  --accent-glow:   rgba(109,40,217,0.20);
+  --text:          #09090C;
+  --text-2:        #54556A;
+  --text-3:        #9899A8;
+  --code-bg:       #EEF0F7;
 }
 
 html, body { height: 100%; }
@@ -58,6 +60,15 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none; user-select: none;
+  opacity: 0.030;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.80' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px;
+}
+html.light body::after { opacity: 0.016; }
 
 /* ── Scrollbar ──────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -65,9 +76,9 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 /* ── Typography ─────────────────────────────────────── */
-h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.2; }
-h2 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; }
-h3 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; }
+h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; }
+h2 { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.25; }
+h3 { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.4; }
 p { color: var(--text-2); }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -86,13 +97,14 @@ pre code { background: none; border: none; padding: 0; font-size: 0.875rem; }
 #navbar {
   position: sticky; top: 0; z-index: 100;
   height: var(--nav-h);
-  background: rgba(12,12,13,0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(7,8,15,0.75);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center;
 }
 html.light #navbar {
-  background: rgba(255,255,255,0.85);
+  background: rgba(250,250,250,0.80);
 }
 #navbar .container {
   display: flex; align-items: center; gap: 8px; width: 100%; max-width: 1200px;
@@ -150,8 +162,16 @@ html.light #navbar {
 }
 .btn-primary {
   background: var(--accent); color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+  transition: background 0.15s, box-shadow 0.2s, transform 0.1s;
 }
-.btn-primary:hover { background: var(--accent-hover); text-decoration: none; color: #fff; }
+.btn-primary:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 22px var(--accent-glow);
+  transform: translateY(-1px);
+  text-decoration: none; color: #fff;
+}
+.btn-primary:active { transform: translateY(0); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
 .btn-ghost {
   background: none; color: var(--text-2);
   border: 1px solid var(--border);
@@ -178,6 +198,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .card + .card { margin-top: 12px; }
 
@@ -196,58 +217,83 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* PAGE: LANDING                                          */
 /* ────────────────────────────────────────────────────── */
 #page-home .hero {
-  padding: 88px 0 64px;
+  padding: 96px 0 80px;
   text-align: center;
   position: relative;
   overflow: hidden;
 }
 #page-home .hero::before {
   content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(124,58,237,0.15) 0%, transparent 70%);
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 110% 65% at 50% -8%,  rgba(124,58,237,0.22) 0%, transparent 58%),
+    radial-gradient(ellipse 55%  50% at 82% 18%,  rgba(99,102,241,0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 55%  50% at 18% 22%,  rgba(139,92,246,0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+#page-home .hero::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 40%, black 0%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 85% 70% at 50% 40%, black 0%, transparent 100%);
   pointer-events: none;
 }
 #page-home .hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 0.8125rem; font-weight: 500;
-  color: var(--accent); background: var(--accent-subtle);
-  border: 1px solid rgba(124,58,237,0.3);
-  border-radius: 20px; padding: 5px 14px;
-  margin-bottom: 28px; letter-spacing: 0.02em;
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 0.72rem; font-weight: 600;
+  color: #a78bfa; background: rgba(124,58,237,0.10);
+  border: 1px solid rgba(124,58,237,0.22);
+  border-radius: 20px; padding: 5px 13px;
+  margin-bottom: 32px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.eyebrow-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #7C3AED;
+  box-shadow: 0 0 7px rgba(124,58,237,0.9);
+  flex-shrink: 0;
 }
 #page-home .hero h1 {
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  max-width: 720px; margin: 0 auto 20px;
-  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  font-size: clamp(2.75rem, 6.5vw, 4.75rem);
+  max-width: 800px; margin: 0 auto 24px;
+  background: linear-gradient(175deg, #fff 0%, rgba(255,255,255,0.88) 40%, rgba(200,196,255,0.70) 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  letter-spacing: -0.03em; line-height: 1.1;
+  letter-spacing: -0.04em; line-height: 1.05; font-weight: 800;
 }
 html.light #page-home .hero h1 {
-  background: linear-gradient(135deg, #09090B 0%, #52525B 100%);
+  background: linear-gradient(175deg, #09090C 0%, #3B3B52 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 #page-home .hero > .container > p {
-  font-size: 1.125rem; max-width: 520px; margin: 0 auto 36px;
-  line-height: 1.7; color: var(--text-2);
+  font-size: 1.125rem; max-width: 500px; margin: 0 auto 40px;
+  line-height: 1.75; color: var(--text-2);
 }
 #page-home .hero-actions {
   display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
-#page-home .hero-meta {
-  font-size: 0.8rem; color: var(--text-3);
+#page-home .hero-proof {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; flex-wrap: wrap;
+  font-size: 0.78rem; color: var(--text-3); letter-spacing: 0.01em;
 }
+#page-home .hero-proof-sep { opacity: 0.35; }
 
 /* ── Live demo widget ────────────────────────────────── */
 .hero-demo {
   margin: 56px auto 0;
   max-width: 740px;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
-  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.05),
+    0 8px 24px rgba(0,0,0,0.28),
+    0 32px 80px rgba(0,0,0,0.45);
   text-align: left;
 }
 .hero-demo-bar {
@@ -318,7 +364,7 @@ html.light #page-home .hero h1 {
   display: none;
 }
 
-/* ── Feature cards (redesigned) ─────────────────────── */
+/* ── Feature cards ───────────────────────────────────── */
 .features-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1px;
@@ -330,17 +376,26 @@ html.light #page-home .hero h1 {
 .feature-card {
   background: var(--surface);
   padding: 32px 28px;
-  transition: background 0.15s;
+  transition: background 0.2s;
+  position: relative; overflow: hidden;
+}
+.feature-card::after {
+  content: '';
+  position: absolute; top: 0; left: 15%; right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(167,139,250,0.6), transparent);
+  opacity: 0; transition: opacity 0.25s;
 }
 .feature-card:hover { background: var(--surface-2); }
+.feature-card:hover::after { opacity: 1; }
 .feature-icon {
-  width: 48px; height: 48px; border-radius: 12px;
-  background: var(--accent-subtle); border: 1px solid rgba(124,58,237,0.2);
+  width: 44px; height: 44px; border-radius: 10px;
+  background: var(--accent-subtle); border: 1px solid rgba(124,58,237,0.18);
   display: flex; align-items: center; justify-content: center;
   color: var(--accent); margin-bottom: 18px;
 }
-.feature-card h3 { margin-bottom: 10px; font-size: 1.0625rem; }
-.feature-card p { font-size: 0.9375rem; line-height: 1.65; }
+.feature-card h3 { margin-bottom: 10px; font-size: 1rem; font-weight: 600; }
+.feature-card p { font-size: 0.9rem; line-height: 1.7; }
 
 /* ── Steps / how it works ───────────────────────────── */
 .how-grid {
@@ -350,7 +405,10 @@ html.light #page-home .hero h1 {
 .how-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+  transition: box-shadow 0.2s;
 }
+.how-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.28); }
 .how-card-top {
   display: flex; align-items: center; gap: 12px;
   padding: 20px 20px 16px;
@@ -360,6 +418,7 @@ html.light #page-home .hero h1 {
   background: var(--accent); color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.8125rem; font-weight: 700; flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(124,58,237,0.40);
 }
 .how-card-top h3 { font-size: 1rem; }
 .terminal-mock {
@@ -387,7 +446,7 @@ html.light .terminal-mock { background: #1a1a1a; }
   font-size: 0.875rem; font-weight: 500; color: var(--text-2);
   cursor: pointer; transition: all 0.15s; text-decoration: none;
 }
-.agent-pill:hover { border-color: var(--accent); color: var(--text); text-decoration: none; }
+.agent-pill:hover { border-color: var(--accent); color: var(--text); background: var(--accent-subtle); text-decoration: none; }
 
 /* ── Stats row ──────────────────────────────────────── */
 .stats-row {
@@ -401,16 +460,17 @@ html.light .terminal-mock { background: #1a1a1a; }
   padding: 28px 24px; text-align: center;
 }
 .stat-box .stat-num {
-  font-size: 2rem; font-weight: 700; color: var(--text);
-  letter-spacing: -0.03em; line-height: 1;
-  margin-bottom: 6px;
+  font-size: 2rem; font-weight: 800; color: var(--text);
+  letter-spacing: -0.04em; line-height: 1;
+  margin-bottom: 6px; font-variant-numeric: tabular-nums;
 }
 .stat-box .stat-label {
-  font-size: 0.875rem; color: var(--text-3);
+  font-size: 0.8125rem; color: var(--text-3); letter-spacing: 0.01em;
 }
 
-.section-header { margin-bottom: 40px; }
-.section-header h2 { margin-bottom: 8px; }
+.section-header { margin-bottom: 48px; }
+.section-header h2 { margin-bottom: 10px; }
+.section-header > p { font-size: 1rem; max-width: 460px; }
 
 /* ── Buttons (secondary) ────────────────────────────── */
 .btn-secondary {
@@ -714,7 +774,7 @@ html.light .terminal-mock { background: #1a1a1a; }
 
 /* ── Footer ─────────────────────────────────────────── */
 footer {
-  border-top: 1px solid var(--border); padding: 32px 0;
+  padding: 0;
   margin-top: 80px;
 }
 .footer-inner {
@@ -1030,6 +1090,7 @@ footer {
   border-radius: var(--radius-lg); padding: 28px 24px;
   width: 240px; display: flex; flex-direction: column; gap: 14px;
   flex-shrink: 0;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.22);
 }
 @media (max-width: 720px) { .about-card { width: 100%; } }
 .about-avatar {
@@ -1130,7 +1191,7 @@ footer {
   <div class="hero">
     <div class="container">
       <div class="hero-eyebrow">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="6"/></svg>
+        <span class="eyebrow-dot"></span>
         Local &middot; Private &middot; Offline-first
       </div>
       <h1>Understand any codebase<br>in seconds, not hours.</h1>
@@ -1146,7 +1207,17 @@ footer {
           GitHub
         </a>
       </div>
-      <p class="hero-meta">8 languages &middot; PDF support &middot; MCP for Claude, Cursor &amp; more &middot; MIT license</p>
+      <div class="hero-proof">
+        <span>Open source</span>
+        <span class="hero-proof-sep">·</span>
+        <span>MIT license</span>
+        <span class="hero-proof-sep">·</span>
+        <span>No account needed</span>
+        <span class="hero-proof-sep">·</span>
+        <span>8 languages</span>
+        <span class="hero-proof-sep">·</span>
+        <span>Works fully offline</span>
+      </div>
 
       <!-- Live demo -->
       <div class="hero-demo">
@@ -1189,8 +1260,8 @@ footer {
     <!-- ── FEATURES ────────────────────────────────────── -->
     <div class="section">
       <div class="section-header">
-        <h2>Everything you need to understand a codebase</h2>
-        <p>One index. Search, graph, report, and ask — all offline.</p>
+        <h2>One index. Every angle covered.</h2>
+        <p>Search, graph, report, and ask — everything runs locally, nothing leaves your machine.</p>
       </div>
       <div class="features-grid">
 
@@ -1286,7 +1357,7 @@ footer {
     <div class="section">
       <div class="section-header">
         <h2>Up and running in 3 commands</h2>
-        <p>No Docker. No config files. No cloud signup needed.</p>
+        <p>No Docker, no config files, no cloud signup. Just build, index, and search.</p>
       </div>
       <div class="how-grid">
 
