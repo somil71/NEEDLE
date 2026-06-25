@@ -5,7 +5,7 @@ use std::os::windows::process::CommandExt;
 
 use axum::{
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{Html, IntoResponse},
     routing::{get, post},
     Json, Router,
@@ -20,8 +20,10 @@ use needle::{
     storage::Storage,
 };
 use serde::{Deserialize, Serialize};
-use needle::server::{oauth, users};
+use needle::server::{indexer, oauth, users};
+use std::collections::HashMap;
 use std::collections::HashSet;
+use tokio::sync::RwLock;
 use std::sync::{Arc, Mutex};
 use tower_cookies::Cookies;
 
@@ -29,21 +31,21 @@ use tower_cookies::Cookies;
 // Shared state
 // ---------------------------------------------------------------------------
 
-#[derive(Clone)]
-struct AppState {
-    engine:     Option<Arc<Mutex<QueryEngine>>>,
-    storage:    Option<Storage>,
-    graph:      Arc<CodeGraph>,
-    has_ollama: bool,
+/// Per-user loaded engine (cached after first load)
+struct UserEngine {
+    engine: Arc<Mutex<QueryEngine>>,
 }
 
-macro_rules! require_index {
-    ($state:expr) => {
-        match $state.engine.as_ref() {
-            Some(e) => e,
-            None => return Json(serde_json::json!({"error": "no_index", "message": "No index found. Run needle init first."})).into_response(),
-        }
-    };
+#[derive(Clone)]
+struct AppState {
+    engine:      Option<Arc<Mutex<QueryEngine>>>,
+    storage:     Option<Storage>,
+    graph:       Arc<CodeGraph>,
+    has_ollama:  bool,
+    /// user_id → their loaded engine (cloud repos)
+    user_engines: Arc<RwLock<HashMap<String, UserEngine>>>,
+    /// Root dir for per-user indexes (/data/indexes on cloud)
+    indexes_dir:  Arc<std::path::PathBuf>,
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +154,17 @@ pub async fn run(port: u16, no_open: bool) -> needle::Result<()> {
         format!("127.0.0.1:{}", bind_port)
     };
 
+    // ── Data directory (persistent volume on cloud, ~/.needle locally) ───────
+    let data_dir = std::path::PathBuf::from(
+        std::env::var("DATA_DIR").unwrap_or_else(|_| {
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".needle")
+                .to_string_lossy()
+                .to_string()
+        })
+    );
+
     // ── Load search index (optional — marketing mode if missing) ───────────
     let has_index = Storage::index_exists();
 
@@ -169,10 +182,12 @@ pub async fn run(port: u16, no_open: bool) -> needle::Result<()> {
         engine.ef_search = config.hnsw_ef_search as usize;
         engine.rrf_k     = config.rrf_k;
         AppState {
-            engine:     Some(Arc::new(Mutex::new(engine))),
-            storage:    Some(storage),
-            graph:      Arc::new(graph),
+            engine:       Some(Arc::new(Mutex::new(engine))),
+            storage:      Some(storage),
+            graph:        Arc::new(graph),
             has_ollama,
+            user_engines: Arc::new(RwLock::new(HashMap::new())),
+            indexes_dir:  Arc::new(data_dir.join("indexes")),
         }
     } else {
         if !is_cloud {
@@ -180,16 +195,23 @@ pub async fn run(port: u16, no_open: bool) -> needle::Result<()> {
                 "Note:".yellow().bold());
         }
         AppState {
-            engine:    None,
-            storage:   None,
-            graph:     Arc::new(needle::graph::CodeGraph::default()),
-            has_ollama: false,
+            engine:       None,
+            storage:      None,
+            graph:        Arc::new(needle::graph::CodeGraph::default()),
+            has_ollama:   false,
+            user_engines: Arc::new(RwLock::new(HashMap::new())),
+            indexes_dir:  Arc::new(data_dir.join("indexes")),
         }
     };
 
+    // ── Background indexer (picks up pending repos every 30s) ─────────────
+    {
+        let cfg = Arc::new(indexer::IndexerConfig { data_dir: data_dir.clone() });
+        tokio::spawn(indexer::run(cfg));
+    }
+
     // ── OAuth config (optional — only if env vars are set) ─────────────────
-    let oauth_cfg = oauth::OAuthConfig::from_env();
-    let has_oauth = oauth_cfg.is_some();
+    let has_oauth = oauth::OAuthConfig::from_env().is_some();
 
     // ── Router ─────────────────────────────────────────────────────────────
     let mut app = Router::new()
@@ -212,6 +234,7 @@ pub async fn run(port: u16, no_open: bool) -> needle::Result<()> {
         .route("/api/me/revoke-key",        post(api_revoke_key))
         .route("/api/validate-key",         post(api_validate_key))
         .route("/api/github/repos",         get(api_github_repos_handler))
+        .route("/api/repos",                get(api_repos))
         .route("/api/repos/connect",        post(api_repo_connect))
         .with_state(state)
         .layer(CookieManagerLayer::new());
@@ -261,9 +284,64 @@ async fn serve_ui() -> Html<&'static str> {
     Html(include_str!("../assets/ui.html"))
 }
 
+/// Resolve user from either a session cookie or a Bearer API key header.
+fn resolve_user(cookies: &Cookies, headers: &HeaderMap) -> Option<users::User> {
+    if let Some(u) = oauth::current_user_from_cookies(cookies) {
+        return Some(u);
+    }
+    let auth = headers.get("authorization")?.to_str().ok()?;
+    let key  = auth.strip_prefix("Bearer ")?;
+    let conn = users::open_db().ok()?;
+    users::get_user_by_api_key(&conn, key).ok().flatten()
+}
+
+/// Load all `indexed` engines for the given user, caching them in AppState.
+async fn load_cloud_engines(state: &AppState, user: Option<&users::User>) -> Vec<Arc<Mutex<QueryEngine>>> {
+    let mut out = vec![];
+    let Some(user) = user else { return out };
+    let Ok(conn)  = users::open_db() else { return out };
+    let Ok(repos) = users::list_user_repos(&conn, &user.id) else { return out };
+
+    for repo in repos.into_iter().filter(|r| r.status == "indexed") {
+        let safe_name  = repo.repo_full.replace('/', "_");
+        let engine_key = format!("{}:{}", user.id, safe_name);
+
+        let cached = state.user_engines.read().await.get(&engine_key).map(|ue| ue.engine.clone());
+
+        let engine = if let Some(e) = cached {
+            e
+        } else {
+            let idx_dir = state.indexes_dir.join(&user.id).join(&safe_name).join("index");
+            if !idx_dir.exists() { continue; }
+            match tokio::task::spawn_blocking(move || -> Result<QueryEngine, String> {
+                let s  = Storage::new(idx_dir).map_err(|e| e.to_string())?;
+                let m  = s.load_metadata().unwrap_or_default();
+                let b  = s.load_bm25().map_err(|e| e.to_string())?;
+                let h  = s.load_hnsw().map_err(|e| e.to_string())?;
+                let ch = s.load_chunks().map_err(|e| e.to_string())?;
+                let em = EmbeddingModel::from_metadata(&m.embedding_model, m.embedding_dim as usize)
+                    .map_err(|e| e.to_string())?;
+                Ok(QueryEngine::new(b, h, ch, em))
+            }).await {
+                Ok(Ok(qe)) => {
+                    let arc = Arc::new(Mutex::new(qe));
+                    state.user_engines.write().await.insert(engine_key, UserEngine { engine: arc.clone() });
+                    arc
+                }
+                _ => continue,
+            }
+        };
+
+        out.push(engine);
+    }
+    out
+}
+
 async fn api_search(
     State(state): State<AppState>,
     Query(params): Query<SearchParams>,
+    cookies: Cookies,
+    headers: HeaderMap,
 ) -> Json<SearchResponse> {
     let empty = Json(SearchResponse {
         results: vec![],
@@ -271,18 +349,47 @@ async fn api_search(
         total: 0,
     });
 
-    let engine = match state.engine.as_ref() { Some(e) => e.clone(), None => return empty };
     let q = params.q.unwrap_or_default();
     let limit = params.limit.unwrap_or(12).min(50);
     let lang_filter = params.lang.as_deref().and_then(Language::from_short);
     if q.trim().is_empty() { return empty; }
 
-    let q_clone = q.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let guard = engine.lock().unwrap();
-        guard.search(&q_clone, limit, lang_filter).map_err(|e| e.to_string())
-    }).await;
+    // ── Cloud path ────────────────────────────────────────────────────────
+    let user = resolve_user(&cookies, &headers);
+    let cloud = load_cloud_engines(&state, user.as_ref()).await;
+    if !cloud.is_empty() {
+        let mut all_results: Vec<needle::schema::SearchResult> = vec![];
+        let mut last_timing = TimingJson { total_ms: 0.0, bm25_ms: 0.0, hnsw_ms: 0.0, embed_ms: 0.0, fusion_ms: 0.0 };
+        for engine in cloud {
+            let q2 = q.clone();
+            if let Ok(Ok((results, timing))) = tokio::task::spawn_blocking(move || {
+                engine.lock().unwrap().search(&q2, limit, lang_filter).map_err(|e| e.to_string())
+            }).await {
+                all_results.extend(results);
+                last_timing = TimingJson {
+                    total_ms: timing.total_ms, bm25_ms: timing.bm25_ms,
+                    hnsw_ms: timing.hnsw_ms, embed_ms: timing.embed_ms, fusion_ms: timing.fusion_ms,
+                };
+            }
+        }
+        if !all_results.is_empty() {
+            all_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+            all_results.truncate(limit);
+            let total = all_results.len();
+            return Json(SearchResponse {
+                total,
+                results: all_results.into_iter().map(to_result_json).collect(),
+                timing: last_timing,
+            });
+        }
+    }
 
+    // ── Local path ────────────────────────────────────────────────────────
+    let engine = match state.engine.as_ref() { Some(e) => e.clone(), None => return empty };
+    let q2 = q.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        engine.lock().unwrap().search(&q2, limit, lang_filter).map_err(|e| e.to_string())
+    }).await;
     let (results, timing) = match result { Ok(Ok(r)) => r, _ => return empty };
     let total = results.len();
     Json(SearchResponse {
@@ -354,6 +461,8 @@ async fn api_open(Json(req): Json<OpenRequest>) -> Json<serde_json::Value> {
 
 async fn api_ask(
     State(state): State<AppState>,
+    cookies: Cookies,
+    headers: HeaderMap,
     Json(req): Json<AskRequest>,
 ) -> Json<AskResponse> {
     let question = req.question.trim().to_string();
@@ -366,25 +475,34 @@ async fn api_ask(
         });
     }
 
-    // Step 1: Retrieve relevant chunks via hybrid search
-    let engine = match state.engine.as_ref() {
-        Some(e) => e.clone(),
-        None => return Json(AskResponse { answer: String::new(), sources: vec![], model_used: String::new(), error: Some("No index".into()) }),
-    };
-    let q = question.clone();
-    let search_result = tokio::task::spawn_blocking(move || {
-        let guard = engine.lock().unwrap();
-        guard.search(&q, 8, None).map_err(|e| e.to_string())
-    }).await;
-
-    let (results, _timing) = match search_result {
-        Ok(Ok(r)) => r,
-        _ => return Json(AskResponse {
-            answer: String::new(),
-            sources: vec![],
-            model_used: String::new(),
-            error: Some("Search failed".into()),
-        }),
+    // Step 1: Retrieve relevant chunks — cloud repos first, local fallback
+    let results: Vec<needle::schema::SearchResult> = {
+        let user = resolve_user(&cookies, &headers);
+        let cloud = load_cloud_engines(&state, user.as_ref()).await;
+        if !cloud.is_empty() {
+            let mut all: Vec<needle::schema::SearchResult> = vec![];
+            for engine in cloud {
+                let q2 = question.clone();
+                if let Ok(Ok((res, _))) = tokio::task::spawn_blocking(move || {
+                    engine.lock().unwrap().search(&q2, 8, None).map_err(|e| e.to_string())
+                }).await { all.extend(res); }
+            }
+            all.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+            all.truncate(8);
+            all
+        } else {
+            let engine = match state.engine.as_ref() {
+                Some(e) => e.clone(),
+                None => return Json(AskResponse { answer: String::new(), sources: vec![], model_used: String::new(), error: Some("No index".into()) }),
+            };
+            let q = question.clone();
+            match tokio::task::spawn_blocking(move || {
+                engine.lock().unwrap().search(&q, 8, None).map_err(|e| e.to_string())
+            }).await {
+                Ok(Ok((r, _))) => r,
+                _ => return Json(AskResponse { answer: String::new(), sources: vec![], model_used: String::new(), error: Some("Search failed".into()) }),
+            }
+        }
     };
 
     // Step 2: Build context from top chunks
@@ -411,64 +529,81 @@ async fn api_ask(
 
     let sources: Vec<ResultJson> = results.into_iter().map(to_result_json).collect();
 
-    // Step 3: Try Ollama, then Groq, then return error
-    let preferred_model = req.model.as_deref().unwrap_or("llama3.2");
-    match call_ollama_chat(&prompt, preferred_model).await {
+    // Step 3: Try LLM providers in priority order
+    let client = needle::llm::LlmClient::from_env();
+    match client.complete(
+        "You are an expert code assistant. Answer the user's question about their codebase \
+         using only the provided code context. Be specific: cite function names, file names, \
+         and line numbers. Use markdown. If the context is insufficient, say so clearly.",
+        &prompt,
+    ).await {
         Ok(answer) => Json(AskResponse {
             answer,
             sources,
-            model_used: format!("Ollama/{}", preferred_model),
+            model_used: client.display_name(),
             error: None,
         }),
-        Err(ollama_err) => {
-            // Try Groq fallback
-            match call_groq_chat(&prompt).await {
-                Ok((answer, model)) => Json(AskResponse {
-                    answer,
-                    sources,
-                    model_used: format!("Groq/{}", model),
-                    error: None,
-                }),
-                Err(_) => Json(AskResponse {
-                    answer: String::new(),
-                    sources,
-                    model_used: String::new(),
-                    error: Some(format!(
-                        "No LLM available.\n\
-                        • Ollama: {}\n  Fix: run `ollama serve` and `ollama pull {}`\n\
-                        • Groq: GROQ_API_KEY env var not set\n  Fix: get a free key at console.groq.com",
-                        ollama_err, preferred_model
-                    )),
-                }),
-            }
-        }
+        Err(e) => Json(AskResponse {
+            answer: String::new(),
+            sources,
+            model_used: String::new(),
+            error: Some(format!(
+                "No LLM available ({e}).\n\
+                 Set one of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GROQ_API_KEY\n\
+                 Or run Ollama locally: ollama serve && ollama pull llama3.2"
+            )),
+        }),
     }
 }
 
 async fn api_similar(
     State(state): State<AppState>,
+    cookies: Cookies,
+    headers: HeaderMap,
     Json(req): Json<SimilarRequest>,
 ) -> Json<SearchResponse> {
     let limit = req.limit.unwrap_or(10).min(30);
     let code = req.code.clone();
     let exclude_id = req.exclude_id;
-    let engine = match state.engine.as_ref() { Some(e) => e.clone(), None => return Json(SearchResponse { results: vec![], timing: TimingJson { total_ms:0.0,bm25_ms:0.0,hnsw_ms:0.0,embed_ms:0.0,fusion_ms:0.0 }, total: 0 }) };
+    let empty_timing = TimingJson { total_ms: 0.0, bm25_ms: 0.0, hnsw_ms: 0.0, embed_ms: 0.0, fusion_ms: 0.0 };
 
-    let result = tokio::task::spawn_blocking(move || {
-        let guard = engine.lock().unwrap();
-        guard.search_similar(&code, limit, exclude_id).map_err(|e| e.to_string())
-    }).await;
+    // ── Cloud path ────────────────────────────────────────────────────────
+    let user = resolve_user(&cookies, &headers);
+    let cloud = load_cloud_engines(&state, user.as_ref()).await;
+    if !cloud.is_empty() {
+        let mut all: Vec<needle::schema::SearchResult> = vec![];
+        for engine in cloud {
+            let code2 = code.clone();
+            if let Ok(Ok(res)) = tokio::task::spawn_blocking(move || {
+                engine.lock().unwrap().search_similar(&code2, limit, exclude_id).map_err(|e| e.to_string())
+            }).await { all.extend(res); }
+        }
+        all.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        all.truncate(limit);
+        let total = all.len();
+        return Json(SearchResponse {
+            total,
+            results: all.into_iter().map(to_result_json).collect(),
+            timing: empty_timing,
+        });
+    }
 
-    let results = match result {
+    // ── Local path ────────────────────────────────────────────────────────
+    let engine = match state.engine.as_ref() {
+        Some(e) => e.clone(),
+        None => return Json(SearchResponse { results: vec![], timing: empty_timing, total: 0 }),
+    };
+    let results = match tokio::task::spawn_blocking(move || {
+        engine.lock().unwrap().search_similar(&code, limit, exclude_id).map_err(|e| e.to_string())
+    }).await {
         Ok(Ok(r)) => r,
         _ => vec![],
     };
-
     let total = results.len();
     Json(SearchResponse {
         total,
         results: results.into_iter().map(to_result_json).collect(),
-        timing: TimingJson { total_ms: 0.0, bm25_ms: 0.0, hnsw_ms: 0.0, embed_ms: 0.0, fusion_ms: 0.0 },
+        timing: empty_timing,
     })
 }
 
@@ -506,75 +641,6 @@ async fn api_files(State(state): State<AppState>) -> Json<serde_json::Value> {
     })).collect();
 
     Json(serde_json::json!({ "files": json_files, "total": total }))
-}
-
-// ---------------------------------------------------------------------------
-// LLM helpers
-// ---------------------------------------------------------------------------
-
-async fn call_ollama_chat(prompt: &str, model: &str) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let body = serde_json::json!({
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "stream": false
-    });
-
-    let resp = client
-        .post("http://localhost:11434/api/chat")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("connection refused — is Ollama running? ({})", e))?;
-
-    if resp.status() == 404 {
-        return Err(format!("model '{}' not found — run `ollama pull {}`", model, model));
-    }
-    if !resp.status().is_success() {
-        return Err(format!("Ollama HTTP {}", resp.status()));
-    }
-
-    let data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    Ok(data["message"]["content"].as_str().unwrap_or("").to_string())
-}
-
-async fn call_groq_chat(prompt: &str) -> Result<(String, String), String> {
-    let api_key = std::env::var("GROQ_API_KEY").map_err(|_| "GROQ_API_KEY not set".to_string())?;
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    const MODEL: &str = "llama-3.1-8b-instant";
-    let body = serde_json::json!({
-        "model": MODEL,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 1024
-    });
-
-    let resp = client
-        .post("https://api.groq.com/openai/v1/chat/completions")
-        .bearer_auth(api_key)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !resp.status().is_success() {
-        return Err(format!("Groq HTTP {}", resp.status()));
-    }
-
-    let data: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    let answer = data["choices"][0]["message"]["content"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
-    Ok((answer, MODEL.to_string()))
 }
 
 // ---------------------------------------------------------------------------
@@ -696,6 +762,22 @@ async fn api_repo_connect(
     };
     match users::upsert_repo(&conn, &user.id, &name, &full, &url, private) {
         Ok(repo_id) => Json(serde_json::json!({"ok":true,"repo_id":repo_id,"status":"pending"})).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
+    }
+}
+
+/// GET /api/repos — list authenticated user's repos with current status (for polling)
+async fn api_repos(cookies: Cookies, headers: HeaderMap) -> axum::response::Response {
+    let user = match resolve_user(&cookies, &headers) {
+        Some(u) => u,
+        None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"not_authenticated"}))).into_response(),
+    };
+    let conn = match users::open_db() {
+        Ok(c) => c,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
+    };
+    match users::list_user_repos(&conn, &user.id) {
+        Ok(repos) => Json(serde_json::json!({"repos": repos})).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     }
 }

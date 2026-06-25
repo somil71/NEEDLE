@@ -9,6 +9,7 @@ pub mod embedding;
 pub mod error;
 pub mod graph;
 pub mod indexing;
+pub mod llm;
 pub mod query;
 pub mod schema;
 pub mod storage;
