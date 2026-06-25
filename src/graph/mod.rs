@@ -4,6 +4,20 @@
 //!   Nodes — functions, methods, classes, structs, traits, API endpoints, modules
 //!   Edges — Contains (file→def), Imports (file→file), Calls (fn→fn)
 
+/// Short/common names that appear in every language's stdlib.
+/// When a name is unambiguous (only one project node has it) but cross-module,
+/// skip the edge — the call is almost certainly to a stdlib function, not the
+/// one user-defined function that happens to share the name.
+const SKIP_CROSS_MODULE: &[&str] = &[
+    "now", "new", "clone", "default", "from", "into", "as_ref", "as_mut",
+    "len", "is_empty", "to_string", "as_str", "parse",
+    "unwrap", "expect", "ok", "err", "map", "filter", "collect",
+    "iter", "iter_mut", "into_iter", "next", "peek",
+    "push", "pop", "get", "set", "insert", "remove", "contains",
+    "fmt", "write", "read", "send", "recv", "spawn",
+    "lock", "unlock", "drop", "close", "open", "init",
+];
+
 use crate::schema::Language;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -182,12 +196,20 @@ pub fn extract(file_entries: &[(PathBuf, Language, String)]) -> CodeGraph {
             for callee_name in callees {
                 if callee_name == caller_name { continue; }
                 if let Some(callee_ids) = name_index.get(&callee_name) {
-                    // When a name is shared across multiple files (e.g. `run`, `now`),
-                    // only add an edge to the same-file definition to avoid false
-                    // cross-file edges for generic names. Unambiguous names (one match)
-                    // always get an edge.
+                    // When a name is shared across multiple files (e.g. `run`),
+                    // prefer the same-file definition to avoid false cross-file edges.
+                    // For unambiguous names (one match), add the edge — UNLESS the
+                    // name is in the stdlib-collision blocklist AND the callee lives
+                    // in a different file (e.g. every `now()` call shouldn't link to
+                    // the one user-defined `now` in server/users.rs).
                     let callee_id = if callee_ids.len() == 1 {
-                        Some(callee_ids[0])
+                        let candidate = callee_ids[0];
+                        let cross_file = nodes[candidate as usize].file_path != fp;
+                        if cross_file && SKIP_CROSS_MODULE.contains(&callee_name.as_str()) {
+                            None
+                        } else {
+                            Some(candidate)
+                        }
                     } else {
                         callee_ids.iter()
                             .find(|&&id| nodes[id as usize].file_path == fp)
