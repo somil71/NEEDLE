@@ -1089,43 +1089,85 @@ footer {
 .pillar p { font-size: 0.8125rem; line-height: 1.7; color: var(--text-2); margin: 0; }
 
 /* ── About / author section ─────────────────────────────── */
-.about-section { padding: 80px 0 60px; }
-.about-grid { display: grid; grid-template-columns: 1fr auto; gap: 64px; align-items: center; }
-@media (max-width: 720px) { .about-grid { grid-template-columns: 1fr; gap: 32px; } }
-.about-left h2 { margin-bottom: 16px; }
-.about-left p { font-size: 0.9375rem; line-height: 1.8; margin-bottom: 12px; }
-.about-left p:last-of-type { margin-bottom: 20px; }
-.social-links { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-.social-link {
+.about-section { padding: 64px 0; background: #0d0d0f; }
+html.light .about-section { background: var(--bg); }
+.about-grid { display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: center; padding: 0 24px; }
+@media (max-width: 860px) { .about-grid { grid-template-columns: 1fr; gap: 32px; padding: 0; } }
+.about-left h2 { margin-bottom: 20px; color: #fff; }
+html.light .about-left h2 { color: var(--text); }
+.about-left p { font-size: 0.9375rem; line-height: 1.8; color: #9b9b9b; margin-bottom: 14px; }
+html.light .about-left p { color: var(--text-2); }
+.about-left p:last-of-type { margin-bottom: 28px; }
+/* Star CTA */
+.about-star-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #ffffff; color: #0a0a0f;
+  border: none; border-radius: 8px; padding: 11px 22px;
+  font-size: 0.9375rem; font-weight: 600; text-decoration: none;
+  transition: opacity 0.15s; margin-bottom: 16px;
+}
+.about-star-btn:hover { opacity: 0.88; text-decoration: none; color: #0a0a0f; }
+html.light .about-star-btn { background: #111; color: #fff; }
+html.light .about-star-btn:hover { color: #fff; }
+/* Ghost social row */
+.about-social-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.about-social-link {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: var(--radius);
+  padding: 7px 13px; border-radius: 6px;
   font-size: 0.8rem; font-weight: 500; text-decoration: none;
-  border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+  color: #9b9b9b; background: transparent; border: 0.5px solid #2a2a2e;
   transition: all 0.15s;
 }
-.social-link:hover { border-color: var(--accent); color: var(--text); background: var(--accent-subtle); text-decoration: none; }
+.about-social-link:hover { color: #fff; border-color: #3a3a42; text-decoration: none; }
+html.light .about-social-link { color: var(--text-2); border-color: var(--border); }
+html.light .about-social-link:hover { color: var(--text); border-color: var(--accent); }
+/* Author card */
 .about-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 28px 24px;
-  width: 240px; display: flex; flex-direction: column; gap: 14px;
+  background: #16161a; border: 0.5px solid #2a2a2e;
+  border-radius: 14px; padding: 22px;
+  width: 264px; display: flex; flex-direction: column; gap: 0;
   flex-shrink: 0;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.22);
 }
-@media (max-width: 720px) { .about-card { width: 100%; } }
+html.light .about-card { background: var(--surface); border-color: var(--border); }
+@media (max-width: 860px) { .about-card { width: 100%; } }
+.about-card-divider { border: none; border-top: 0.5px solid #1e1e24; margin: 16px 0; }
+html.light .about-card-divider { border-top-color: var(--border); }
 .about-avatar {
-  width: 64px; height: 64px; border-radius: 50%;
-  background: var(--accent-subtle); border: 2px solid rgba(124,58,237,0.35);
+  width: 52px; height: 52px; border-radius: 50%;
+  background: #2d1f6e;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem; font-weight: 700; color: var(--accent); letter-spacing: -0.03em;
+  font-size: 1.1rem; font-weight: 700; color: #a78bfa;
+  letter-spacing: -0.03em; margin-bottom: 12px;
 }
-.about-name { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.2; }
-.about-role { font-size: 0.8125rem; color: var(--text-3); margin-top: -4px; }
+html.light .about-avatar { background: var(--accent-subtle); color: var(--accent); }
+.about-name { font-size: 0.9375rem; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 3px; }
+.about-role { font-size: 0.72rem; color: #6b6b72; }
+html.light .about-name { color: var(--text); }
+html.light .about-role { color: var(--text-3); }
+.about-bio { font-size: 0.8125rem; color: #9b9b9b; line-height: 1.65; }
+html.light .about-bio { color: var(--text-2); }
+/* Client CTA block */
+.about-client-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border-radius: 8px;
+  background: #111116; border: 0.5px solid #2a2a2e;
+  text-decoration: none; transition: border-color 0.15s;
+}
+.about-client-cta:hover { border-color: #7c6fff; text-decoration: none; }
+html.light .about-client-cta { background: var(--surface-2); border-color: var(--border); }
+html.light .about-client-cta:hover { border-color: var(--accent); }
+.about-client-label { font-size: 0.68rem; color: #6b6b72; margin-bottom: 2px; }
+.about-client-value { font-size: 0.8125rem; color: #fff; font-weight: 500; }
+html.light .about-client-label { color: var(--text-3); }
+html.light .about-client-value { color: var(--text); }
+/* Skill tags */
 .about-tag-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .about-tag {
-  font-size: 0.7rem; font-weight: 500; font-family: var(--mono);
-  padding: 2px 7px; border-radius: 3px;
-  background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3);
+  font-size: 0.68rem; font-weight: 500; font-family: var(--mono);
+  padding: 3px 8px; border-radius: 4px;
+  background: #1a1a20; border: 0.5px solid #2a2a2e; color: #9b9b9b;
 }
+html.light .about-tag { background: var(--surface-2); border-color: var(--border); color: var(--text-3); }
 
 /* ── Feature card expand ─────────────────────────────── */
 .feature-card { cursor: default; }
@@ -1884,24 +1926,23 @@ BASE_URL=https://your-domain.com</code></pre><button class="copy-btn">Copy</butt
           <h2>Built by a developer, for developers.</h2>
           <p>Most code search tools are cloud-dependent, shallow, or both. Needle is a single binary — no server, no upload, no vendor. It builds a real HNSW vector index, parses ASTs with tree-sitter, and runs hybrid BM25 + semantic search entirely on your hardware.</p>
           <p>Plug it into any AI tool as an MCP server. Your code never leaves.</p>
-          <div class="social-links">
-            <a class="social-link" href="https://github.com/somil71" target="_blank" rel="noopener">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-              GitHub · somil71
+          <a class="about-star-btn" href="https://github.com/somil71/NEEDLE" target="_blank" rel="noopener">
+            ⭐ Star on GitHub
+          </a>
+          <div class="about-social-row">
+            <a class="about-social-link" href="https://github.com/somil71" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              somil71
             </a>
-            <a class="social-link" href="https://linkedin.com/in/somil-jha" target="_blank" rel="noopener">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
-              LinkedIn · somil-jha
+            <a class="about-social-link" href="https://linkedin.com/in/somil-jha" target="_blank" rel="noopener">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+              somil-jha
             </a>
-            <a class="social-link" href="mailto:somilwork77@gmail.com">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <a class="about-social-link" href="mailto:somilwork77@gmail.com">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               somilwork77@gmail.com
             </a>
           </div>
-          <a class="btn btn-ghost" href="https://github.com/somil71/needle" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-            ⭐ Star on GitHub
-          </a>
         </div>
         <div class="about-card">
           <div class="about-avatar">SJ</div>
@@ -1909,12 +1950,19 @@ BASE_URL=https://your-domain.com</code></pre><button class="copy-btn">Copy</butt
             <div class="about-name">Somil Jha</div>
             <div class="about-role">Independent builder · AI/ML &amp; Full-Stack</div>
           </div>
-          <div style="font-size:0.8125rem;color:var(--text-2);line-height:1.65;">
+          <hr class="about-card-divider">
+          <div class="about-bio">
             Builds ML backends and full-stack systems from scratch — custom vector search, multi-tenant APIs, production pipelines. No abstractions where none are needed.
           </div>
-          <div style="font-size:0.75rem;color:var(--accent);margin-top:-4px;">
-            Open to client work · <a href="mailto:somilwork77@gmail.com" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">somilwork77@gmail.com</a>
-          </div>
+          <hr class="about-card-divider">
+          <a class="about-client-cta" href="mailto:somilwork77@gmail.com">
+            <div>
+              <div class="about-client-label">Open to client work</div>
+              <div class="about-client-value">somilwork77@gmail.com</div>
+            </div>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b6b72" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </a>
+          <hr class="about-card-divider">
           <div class="about-tag-row">
             <span class="about-tag">Python</span>
             <span class="about-tag">TypeScript</span>
