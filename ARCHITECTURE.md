@@ -1,12 +1,10 @@
-# Needle — Full Architecture & Decision Record
+# Needle — Architecture & Design Reference
 
-_Detailed technical reference for the author. Covers every design decision, component, schema, and deployment option._
+_Full technical reference covering every component, data flow, schema, and design decision._
 
 ---
 
 ## 1. Problem Statement
-
-Modern codebases are large, poorly documented, and hard to navigate — especially for new contributors or AI coding assistants. The alternatives:
 
 | Tool | Problem |
 |------|---------|
@@ -16,31 +14,32 @@ Modern codebases are large, poorly documented, and hard to navigate — especial
 | Copilot / Cursor | No persistent memory of your specific codebase |
 | Language servers (LSP) | Single-file scope, no cross-repo graph |
 
-**Needle's solution**: a local-first binary that builds a hybrid search index + call graph from any codebase, serves a web UI, and exposes an MCP server — with zero cloud dependency.
+**Needle's solution**: a local-first binary that builds a hybrid search index + call graph from any codebase, serves a web UI, exposes an MCP server, and ships as a native desktop app — with zero cloud dependency.
 
 ---
 
-## 2. Feature List (complete)
+## 2. Feature List
 
 ### Search
 - [x] BM25 inverted index (keyword search, exact token matching)
 - [x] HNSW vector index (semantic search, embedding similarity)
-- [x] Reciprocal Rank Fusion (hybrid ranking)
+- [x] Reciprocal Rank Fusion (hybrid ranking, k=60)
 - [x] Per-language filter (`--lang rust`, `--lang python`, etc.)
 - [x] Limit parameter (top-N results)
-- [x] Score explanation (BM25-only, semantic-only, hybrid badge)
+- [x] Score signal badges (BM25-only, semantic-only, hybrid)
 
 ### Indexing
 - [x] Tree-sitter AST chunking (Rust, Python, TS/JS, Go, Java, C, C++)
-- [x] Prose chunking (Markdown, plain text)
+- [x] Prose chunking (Markdown, plain text, TOML, YAML, JSON, Shell, Dockerfile)
 - [x] PDF text extraction + paragraph chunking
 - [x] Sliding-window fallback for unknown file types
-- [x] Content-hash based deduplication (skip unchanged files)
-- [x] JSON persistence (no external DB for local mode)
+- [x] Content-hash deduplication via xxHash3 (skip unchanged files)
+- [x] JSON persistence with WAL for crash-safe incremental updates
+- [x] notify-based file watcher (live reindex on file changes)
 
 ### Graph
 - [x] Definition extraction: function, method, class, struct, trait, module, enum
-- [x] Endpoint detection: Axum `.route()`, Express `app.get/post/...`, FastAPI decorators
+- [x] Endpoint detection: Axum `.route()`, Express `app.get/post`, FastAPI decorators
 - [x] Call edge extraction with same-file disambiguation
 - [x] Import edge extraction
 - [x] Contains edge (module → member)
@@ -49,10 +48,9 @@ Modern codebases are large, poorly documented, and hard to navigate — especial
 - [x] Node detail panel (file path, line range, HTTP method, neighbors)
 - [x] Filter by node kind (module/function/method/class/struct/endpoint)
 - [x] Filter by edge type (calls/imports/contains)
-- [x] Node search with opacity highlight
-- [x] Zoom/pan, drag-to-pin, reset
+- [x] Zoom/pan, drag-to-pin, node search with highlight
 
-### Analysis (needle report)
+### Analysis (`needle report`)
 - [x] God nodes — degree centrality ranking
 - [x] Community detection — label propagation on call/import edges
 - [x] Surprise edges — cross-community call detection
@@ -62,7 +60,7 @@ Modern codebases are large, poorly documented, and hard to navigate — especial
 - [x] `search_code` — hybrid search
 - [x] `find_callers` — reverse call lookup
 - [x] `find_callees` — forward call lookup
-- [x] `find_similar` — semantic similarity
+- [x] `find_similar` — semantic similarity (k-NN)
 - [x] `get_god_nodes` — top-N by degree
 - [x] `get_endpoints` — all HTTP routes
 - [x] `get_communities` — label propagation clusters
@@ -71,469 +69,547 @@ Modern codebases are large, poorly documented, and hard to navigate — especial
 - [x] `get_stats` — index summary
 - [x] `explain` — LLM-based explanation (requires API key)
 
-### Web UI
-- [x] Single-file SPA (embedded at compile time via `include_str!`)
-- [x] Search page (hybrid, with source code highlighting)
-- [x] Ask / RAG page (LLM Q&A with source attribution)
-- [x] Index dashboard (stats, language breakdown, file table, TODO tracker)
-- [x] Graph page (full D3 visualization)
-- [x] Setup page (platform-specific installation guides)
-- [x] Download page
-- [x] Settings page (model selection, API keys)
-- [x] Dark / light mode
-- [x] Live search demo widget on home page
+### CLI Commands
+- [x] `needle init` — build index for one or more directories
+- [x] `needle serve` — web UI + REST API (default when no command given)
+- [x] `needle search` — terminal search (`--limit`, `--lang`, `--compact`, `--all`)
+- [x] `needle reindex` — full re-index of all watched directories
+- [x] `needle watch` — watch directories and reindex on file changes
+- [x] `needle status` — index health and stats
+- [x] `needle graph` — export standalone D3 HTML visualization
+- [x] `needle report` — generate Markdown architecture report
+- [x] `needle bench` — performance benchmarks
+- [x] `needle config` — view/edit configuration
+- [x] `needle mcp` — start MCP server over stdio
 
-### Cloud / Auth
-- [x] GitHub OAuth login
-- [x] Per-user API key generation + revocation
-- [x] SQLite user database (rusqlite, bundled)
-- [x] Session cookies (HMAC-SHA256 signed)
-- [x] Multi-repo support (via GitHub API)
-- [x] Docker image (two-stage, ~80MB runtime)
-- [x] Railway deployment support
+### Desktop App
+- [x] Tauri v2 wrapper — native window, no browser required
+- [x] System tray icon (Open / Quit)
+- [x] Close minimizes to tray, server keeps running
+- [x] NSIS installer (`Needle_0.1.0_x64-setup.exe`)
+
+### Cloud Mode
+- [x] GitHub OAuth (`/auth/github`, `/auth/callback`)
+- [x] Per-user sessions (cookie-based, SQLite)
+- [x] Per-user API key storage (Anthropic, OpenAI, Groq)
+- [x] Multi-repo support (isolated index namespaces)
+- [x] Docker deployment (Railway, Render, any Docker host)
 
 ---
 
 ## 3. Tech Stack
 
-### Core language
-- **Rust 1.75+** — chosen for: zero-overhead memory-mapped indexes, no GC pauses during search, single binary distribution, safe concurrency
+### Core Language: Rust
 
-### Web framework
-- **Axum 0.7** — async HTTP server, tower middleware, type-safe extractors
-- **Tokio** — async runtime
-- **Tower-http** — CORS, compression
+The entire engine is Rust. The project's hard parts — HNSW inner loops, concurrent indexing, zero-copy index access, memory-mapped storage — are exactly where Rust pays off.
 
-### Parsing
-- **tree-sitter 0.20** — language-agnostic AST parser
-  - `tree-sitter-rust`, `tree-sitter-python`, `tree-sitter-javascript`, `tree-sitter-typescript`, `tree-sitter-go`, `tree-sitter-java`, `tree-sitter-c`, `tree-sitter-cpp`
-- **pdf-extract** — PDF text extraction (pdfium-based)
+### Dependencies
 
-### Embeddings
-- **Hash-projection (custom)** — 384-dimensional embeddings without ONNX/GPU
-  - Input: token string
-  - Method: FNV-1a hash per token → bucketized into 384 float dimensions, L2-normalized
-  - Tradeoff: lower recall vs. trained sentence transformers, but no model download, no ONNX runtime, instant startup, deterministic
-  - Future: pluggable embedding backends (ONNX, llamacpp)
+| Layer | Crate | Why |
+|---|---|---|
+| CLI | `clap` | Derive-based arg parsing, subcommands |
+| AST parsing | `tree-sitter` + grammars | Code-aware chunking on function/class boundaries |
+| Embeddings | Hash-projection (built-in) | 384-dim offline embeddings, no model download, no ONNX |
+| File watching | `notify` | Cross-platform fs events (inotify / FSEvents / ReadDirectoryChanges) |
+| Memory mapping | `memmap2` | Zero-copy index loading, OS page cache handles hot/cold |
+| Hashing | `xxhash-rust` (xxh3) | Content dedup (~30 GB/s) |
+| Serialization | `serde` + `serde_json` + `bincode` | Index persistence |
+| Web server | `axum` | Async HTTP server for the web UI + REST API |
+| HTTP client | `reqwest` | Ollama/LLM API calls |
+| Database | `rusqlite` (bundled) | Sessions, per-user API keys (cloud mode) |
+| Async | `tokio` (full) | Async runtime |
+| Logging | `tracing` + `tracing-subscriber` | Structured logs, env-filter |
+| Parallelism | `rayon` + `crossbeam` | Parallel chunking, watcher-to-indexer channels |
+| PDF | `pdf-extract` | Text extraction |
+| Progress | `indicatif` | Terminal progress bars |
+| Terminal | `colored` | Colored search output |
+| Desktop | `tauri v2` | Native window wrapping the web UI |
 
-### Indexing
-- **Custom BM25** — hand-written inverted index, no external crate
-  - Unicode tokenization (`unicode_segmentation`)
-  - Term frequency + document frequency
-  - BM25 formula with k1=1.2, b=0.75
-- **Custom HNSW** — hand-written hierarchical navigable small world graph
-  - M=16 (max neighbors per layer), ef_construction=200
-  - Diversity heuristic for neighbor selection (avoids clustering)
-  - Soft-delete with periodic compaction
+### What is NOT a dependency
 
-### Storage
-- **serde + serde_json** — index serialization
-- **rusqlite (bundled)** — user/session DB in cloud mode
-- Index files: plain JSON for debuggability (can be inspected with `jq`)
-
-### Frontend (web UI)
-- Single HTML file, no build step, no bundler
-- **D3.js v7** (CDN) — force simulation, zoom, drag
-- **marked.js** (CDN) — Markdown rendering for Ask output
-- **highlight.js** (CDN) — syntax highlighting for code results
-
-### CLI
-- **clap 4** — argument parsing
-- **colored** — terminal output formatting
-- **indicatif** — progress bars during indexing
-
-### Async / concurrency
-- **rayon** — parallel indexing (file scanning, chunking, embedding)
-- **tokio** — async web server
-- **crossbeam** — channels for index pipeline
+- No vector database (Qdrant, Pinecone, Weaviate) — HNSW is hand-rolled
+- No search engine library (Tantivy, Meilisearch) — BM25 inverted index is hand-rolled
+- No ONNX Runtime, no model download — embeddings use hash-projection
+- No GPU required — everything runs on CPU
 
 ---
 
-## 4. Data Schema
+## 4. Repository Layout
 
-### Chunk
+```
+NEEDLE/
+├── src/
+│   ├── main.rs              # CLI entry point (clap subcommands)
+│   ├── lib.rs               # Library crate root (pub mods)
+│   ├── schema.rs            # Chunk, Language, NodeKind, Edge types
+│   ├── config.rs            # needle.toml + env config
+│   ├── error.rs             # Error / Result types (thiserror)
+│   ├── chunking/
+│   │   ├── code.rs          # Tree-sitter AST chunking
+│   │   └── prose.rs         # Markdown, PDF, plain-text chunking
+│   ├── indexing/
+│   │   ├── bm25.rs          # Inverted index, BM25 scoring
+│   │   └── hnsw.rs          # HNSW approximate nearest-neighbour graph
+│   ├── query/
+│   │   ├── mod.rs           # QueryEngine
+│   │   └── fusion.rs        # Reciprocal Rank Fusion
+│   ├── embedding/
+│   │   └── mod.rs           # Hash-projection 384-dim embeddings (offline)
+│   ├── graph/
+│   │   └── mod.rs           # CodeGraph: extraction, communities, god nodes
+│   ├── storage/
+│   │   └── mod.rs           # JSON persistence, WAL
+│   ├── server/              # Axum HTTP server + all REST routes
+│   ├── watcher/             # notify-based file watcher (live reindex)
+│   ├── llm/                 # LLM routing (Anthropic → OpenAI → Groq → Ollama)
+│   ├── cli/                 # One file per subcommand
+│   │   ├── init.rs
+│   │   ├── serve.rs         # Main server entry, opens browser
+│   │   ├── search.rs
+│   │   ├── mcp.rs           # stdio MCP server
+│   │   ├── graph.rs         # D3 HTML export
+│   │   ├── report.rs        # Markdown analysis
+│   │   ├── bench.rs
+│   │   ├── watch.rs
+│   │   ├── status.rs
+│   │   ├── reindex.rs
+│   │   └── config.rs
+│   └── assets/
+│       └── ui.html          # Web UI — single-file SPA, embedded at compile time
+│
+├── src-tauri/               # Tauri v2 desktop app
+│   ├── src/lib.rs           # Spawns needle binary, opens WebviewWindow
+│   ├── src/main.rs          # Entry point (no console window in release)
+│   ├── tauri.conf.json      # App identity, bundle config, icon paths
+│   ├── icons/               # App icons (32x32, 128x128, ico, icns)
+│   ├── frontend/            # Placeholder dist (window actually loads localhost:7700)
+│   ├── capabilities/        # Tauri v2 permission set
+│   └── WebView2Loader.dll   # Bundled for GNU toolchain (not needed with MSVC)
+│
+├── needle-vscode/           # VS Code extension
+│   ├── src/extension.ts     # Activates, spawns needle serve, opens WebviewPanel
+│   └── package.json         # Extension manifest
+│
+├── benches/                 # criterion benchmarks (HNSW, BM25, embedding)
+├── Cargo.toml               # Workspace root — members: [".","src-tauri"]
+├── Dockerfile               # Two-stage Rust build → Debian slim
+└── docs/                    # Additional detailed design docs
+```
 
-```rust
-pub struct Chunk {
-    pub id: u32,
-    pub file_path: String,
-    pub language: Language,
-    pub content: String,
-    pub line_start: u32,
-    pub line_end: u32,
-    pub chunk_type: ChunkType,   // Function, Class, Method, Section, Paragraph, ...
-    pub name: Option<String>,    // extracted function/class name
-    pub content_hash: u64,       // FNV hash for dedup
-    pub embedding: Vec<f32>,     // 384-dim (stored separately in HNSW)
+---
+
+## 5. Deployment Modes
+
+| Mode | Entry Point | Notes |
+|------|-------------|-------|
+| Desktop app | `Needle_0.1.0_x64-setup.exe` | Tauri wraps needle server in native window |
+| Web UI | `needle serve` | Axum on localhost:7700, opens browser |
+| CLI | `needle search`, `needle init`, … | No server, terminal only |
+| MCP server | `needle mcp` | stdio, connects to Claude Code / Cursor / Windsurf |
+| VS Code | `.vsix` extension | WebviewPanel embedding the web UI |
+| Cloud / Docker | `docker run needle` | GitHub OAuth, multi-user, Railway/Render |
+
+---
+
+## 6. Indexing Pipeline
+
+```
+Files on disk
+     │
+     ▼
+[needle init / Watcher]
+  notify events + recursive directory walk
+     │
+     ▼
+[Chunker]  ───────────────────────────────────────────
+  code.rs:    tree-sitter visitor → function/class/struct chunks
+              each chunk = {file, line_start, line_end, kind, content}
+  prose.rs:   heading-aware paragraph splits (Markdown)
+              pdf-extract → paragraph chunks (PDF)
+              sliding-window fallback (plain text / config)
+     │
+     ▼
+[Deduplication]
+  xxHash3(content) → compare with stored hash for this file
+  unchanged chunks → skip entirely
+     │
+     ▼
+[Embedder]
+  hash-projection: tokenize → n-grams → stable hash → 384-dim vector → L2-normalize
+  no model file, no network, deterministic
+     │
+     ├──► [BM25 Indexer]          inverted index, per-term postings + IDF
+     ├──► [HNSW Indexer]          ANN graph, bidirectional edges
+     └──► [CodeGraph]             call + import + contains edges
+              │
+              ▼
+         [Storage] → ~/.needle/ (JSON + WAL)
+```
+
+---
+
+## 7. Query Pipeline
+
+```
+User query string
+       │
+       ├──► [BM25]
+       │      tokenize → normalize → lookup postings
+       │      score = Σ IDF(t) × tf(t,d)×(k1+1) / (tf(t,d) + k1×(1 - b + b×|d|/avgdl))
+       │      k1=1.2, b=0.75
+       │      → Ranked List A (top 50)
+       │
+       └──► [HNSW k-NN]
+              embed query → 384-dim vector
+              greedy layer descent from entry point, ef_search candidate pool
+              → Ranked List B (top 50 by cosine similarity)
+                     │
+                     ▼
+            [Reciprocal Rank Fusion]
+            For each unique chunk across both lists:
+              rrf_score += 1 / (60 + rank_in_list)
+            Sort descending → top-N results
+                     │
+                     ▼
+            Enrich: load content, snippet, signal badge [KW] / [SEM] / [HYBRID]
+```
+
+---
+
+## 8. Embedding Strategy
+
+No model download. Hash-projection embeddings:
+
+1. Tokenize input into character n-grams (n=2,3)
+2. Each n-gram → stable xxHash3 → maps to one of 384 dimensions
+3. Accumulate: `vec[hash % 384] += 1.0`
+4. L2-normalize the resulting vector
+
+**Tradeoff**: lower semantic recall than a transformer model, but zero latency, zero disk space, works fully offline. Sufficient for code — identifiers are already semantically distinct tokens.
+
+---
+
+## 9. CodeGraph
+
+**Nodes**: functions, methods, classes, structs, traits, modules, enums, HTTP endpoints
+
+**Edges**:
+| Type | Meaning |
+|------|---------|
+| `calls` | Function A calls function B |
+| `imports` | Module A imports module B |
+| `contains` | Module/class contains member |
+
+**Extraction**: tree-sitter visitor per language. Explicit patterns for call expressions, method calls, and import statements.
+
+**Self-loop suppression**: recursive calls filtered. Common stdlib names (`len`, `print`, `fmt`, `new`, `clone`, …) suppressed via deny-list to prevent false cross-module edges.
+
+**Same-file disambiguation**: when resolving a call target, prefer definitions in the same file before falling back to imported names.
+
+**Communities**: label-propagation algorithm on the call+import subgraph. Each node starts as its own community; iteratively adopts the most common community among its neighbors until convergence.
+
+**God nodes**: degree centrality = in-degree + out-degree. Top-N surfaced in `needle report` and MCP `get_god_nodes`.
+
+**Surprise edges**: call edges that cross community boundaries. Indicates unexpected coupling between architectural modules.
+
+---
+
+## 10. HNSW Construction (detailed)
+
+```
+Input: vector V to insert
+
+  1. Sample insertion layer L:
+     L = floor(-ln(uniform_random()) × mL)
+     mL = 1 / ln(M)          (default M=16)
+     → Most nodes get L=0. Probability of L=k decreases exponentially.
+
+  2. Phase 1 — Descend to layer L+1 (greedy, no insertions):
+     From entry point (highest layer), greedily walk toward V at each layer.
+     → Positions entry point near V's neighborhood.
+
+  3. Phase 2 — Insert at layers L..=0:
+     For each layer from L down to 0:
+       a. Search: find efConstruction nearest candidates of V (default ef=200).
+          BFS-like: maintain min-heap of candidates, max-heap of results.
+          Expand closest unvisited candidates until no improvement.
+
+       b. Select M neighbors (DIVERSITY HEURISTIC):
+          Sort candidates by dist(c, V) ascending.
+          selected = []
+          For each candidate c:
+            If dist(c, s) < dist(c, V) for ANY already-selected s → skip
+              (c is redundant: s already covers that direction of space)
+            Else → add to selected
+            Stop at M.
+          → Ensures selected neighbors are spread around V, not clustered.
+
+       c. Create bidirectional edges V ↔ each selected neighbor.
+          If any neighbor now has > Mmax edges → prune using same heuristic.
+
+  4. If L > current max layer → V becomes new entry point.
+```
+
+**Search (query time)**:
+```
+Start at entry point, top layer.
+For each layer top..=0:
+  Maintain candidate set of size ef_search.
+  Greedily expand: pop closest, check neighbors, add closer ones.
+  Pass closest node as entry to next layer.
+At layer 0: return top-K by distance.
+```
+
+---
+
+## 11. Data Schema
+
+### Chunk (atomic unit of indexing)
+
+```
+Chunk {
+    id:             u64,            # monotonic ChunkId
+    file_path:      String,         # relative path, e.g. "src/http/retry.rs"
+    byte_offset:    u64,
+    byte_length:    u32,
+    line_start:     u32,            # 1-indexed
+    line_end:       u32,            # inclusive
+    language:       Language,       # Rust | Python | TypeScript | Go | Java | Cpp | Markdown | Pdf | …
+    chunk_type:     ChunkType,      # Function | Class | Method | Module | Struct |
+                                    # Paragraph | Section | ConfigBlock | Import
+    content_hash:   u64,            # xxh3 for dedup
+    token_count:    u32,            # BM25 length normalization
+    content:        String,         # raw text
+    embedding:      [f32; 384],     # hash-projection vector
+    status:         Active | Tombstoned,
 }
 ```
 
-### GraphNode
+### Edge (CodeGraph)
 
-```rust
-pub struct GraphNode {
-    pub id: u32,
-    pub name: String,
-    pub kind: NodeKind,    // Function | Method | Class | Struct | Trait | Module | Endpoint | Enum
-    pub file_path: String,
-    pub line_start: u32,
-    pub line_end: u32,
-    pub detail: Option<String>,  // HTTP method for endpoints ("GET", "POST", ...)
+```
+Edge {
+    source:     NodeId,             # (file_path, symbol_name)
+    target:     NodeId,
+    kind:       Calls | Imports | Contains,
+    call_site:  Option<u32>,        # line number
 }
 ```
 
-### GraphEdge
+### Storage layout
 
-```rust
-pub struct GraphEdge {
-    pub from: u32,   // source node ID
-    pub to: u32,     // target node ID
-    pub kind: EdgeKind,  // Calls | Imports | Contains
+```
+~/.needle/
+├── config.toml          # watched dirs, chunk params, server port, LLM config
+├── index.json           # serialized BM25 inverted index + chunk store
+├── hnsw.json            # HNSW graph (adjacency lists)
+├── graph.json           # CodeGraph nodes + edges
+└── wal/                 # write-ahead log segments
+    └── segment_N.wal
+```
+
+### WAL entry
+
+```
+WalEntry {
+    sequence:       u64,
+    entry_type:     AddChunks | DeleteChunks | UpdatePath | Checkpoint,
+    file_path:      Option<String>,
+    added_chunks:   Vec<ChunkId>,
+    deleted_chunks: Vec<ChunkId>,
+    checksum:       u32,            # CRC32
+    committed:      bool,           # written AFTER successful apply
 }
-```
 
-### Index files (disk layout)
+Write protocol:
+  1. Append entry with committed=false
+  2. Apply mutations to in-memory indexes
+  3. Set committed=true
+  4. fsync
 
-```
-~/.needle/index/
-├── meta.json          # { version, embedding_model, indexed_at, source_dirs }
-├── chunks.json        # { "0": {Chunk}, "1": {Chunk}, ... }
-├── filemap.json       # { "src/main.rs": [0, 1, 5, 12, ...], ... }
-├── bm25.json          # { term_freqs, doc_freqs, doc_lengths, avg_doc_len }
-├── hnsw.json          # { layers: [[neighbors]], entry_point, vectors }
-└── graph.json         # { nodes: [...], edges: [...], stats: {...} }
-```
-
-### User DB (cloud mode, SQLite)
-
-```sql
-CREATE TABLE users (
-    id          INTEGER PRIMARY KEY,
-    github_id   INTEGER UNIQUE NOT NULL,
-    username    TEXT NOT NULL,
-    email       TEXT,
-    avatar_url  TEXT,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE api_keys (
-    id          INTEGER PRIMARY KEY,
-    user_id     INTEGER REFERENCES users(id),
-    key_hash    TEXT UNIQUE NOT NULL,  -- SHA-256 of raw key
-    prefix      TEXT NOT NULL,         -- first 8 chars of raw key (for display)
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_used   DATETIME,
-    revoked     BOOLEAN DEFAULT FALSE
-);
-
-CREATE TABLE sessions (
-    token_hash  TEXT PRIMARY KEY,      -- SHA-256 of session token
-    user_id     INTEGER REFERENCES users(id),
-    expires_at  DATETIME NOT NULL
-);
+Recovery: replay committed entries, discard uncommitted.
 ```
 
 ---
 
-## 5. API Endpoints (served by `needle serve`)
-
-| Method | Path | Handler | Description |
-|--------|------|---------|-------------|
-| GET | `/` | `serve_ui` | Serves embedded `ui.html` |
-| GET | `/api/search` | `api_search` | Hybrid search |
-| GET | `/api/graph` | `api_graph` | Full graph JSON |
-| POST | `/api/open` | `api_open` | Open file in editor |
-| POST | `/api/ask` | `api_ask` | RAG + LLM Q&A |
-| POST | `/api/similar` | `api_similar` | Similar chunk lookup |
-| GET | `/api/status` | `api_status_handler` | Index stats |
-| GET | `/api/files` | `api_files` | File list |
-| GET | `/api/todos` | `api_todos` | TODO/FIXME scan |
-| GET | `/auth/github` | `api_auth_github` | OAuth redirect |
-| GET | `/auth/callback` | `api_auth_callback` | OAuth callback |
-| GET | `/auth/logout` | `api_auth_logout` | Session clear |
-| GET | `/api/me` | `api_me` | Current user |
-| GET | `/api/repos` | `api_repos` | User's repos |
-| GET | `/api/github/repos` | `api_github_repos_handler` | GitHub repo list |
-| POST | `/api/repos/connect` | `api_repo_connect` | Connect a repo |
-| POST | `/api/keys/validate` | `api_validate_key` | Validate API key |
-| POST | `/api/keys/regenerate` | `api_regenerate_key` | Generate new key |
-| POST | `/api/keys/revoke` | `api_revoke_key` | Revoke API key |
-
----
-
-## 6. Graph Extraction — Detailed
-
-Graph extraction runs in multiple passes over every source file:
-
-### Pass 1 — Definition extraction
-Using tree-sitter queries, extract all named symbols:
-
-```rust
-// Rust example queries
-(function_item name: (identifier) @name) -> NodeKind::Function
-(impl_item trait: _ type: (type_identifier) @name) -> NodeKind::Trait  
-(struct_item name: (type_identifier) @name) -> NodeKind::Struct
-```
-
-Each extracted symbol becomes a `GraphNode` with `id`, `name`, `kind`, `file_path`, `line_start`, `line_end`.
-
-### Pass 1.5 — Endpoint detection (Axum/Express/FastAPI)
-Regex scan for route registration patterns:
-
-```rust
-// Axum: .route("/path", get(handler))
-// Express: app.get('/path', handler)  
-// FastAPI: @app.get('/path')
-```
-
-When a matching route is found, the handler function name is looked up in the node map and its `kind` is promoted to `NodeKind::Endpoint` with `detail = "GET"` (or POST, PUT, DELETE, etc.).
-
-### Pass 2 — Call/import extraction
-For each file, extract all function calls and imports. Then resolve them:
-
-1. Look up the call name in the node map
-2. If multiple matches exist, prefer the node in the **same file** (disambiguation to avoid false edges for common names like `run`, `new`, `clone`)
-3. Add a `Calls` edge if resolved, `Imports` edge for use/import statements
-
-### Community detection (label propagation)
-```
-label[node] = node.id  // start: each node is its own community
-repeat until stable:
-  for each (src, dst) in call_edges:
-    label[dst] = label[src]  // propagate label downstream
-```
-
-Converges in ~10 iterations for typical codebases. Output: `Map<NodeId, CommunityId>`.
-
-### God nodes
-```
-degree[node] = count(edges where from==node or to==node)
-top_god_nodes = degree.most_common(N)
-```
-
-### Surprise edges
-```
-for each calls edge (src, dst):
-  if community[src] != community[dst]:
-    surprises.append((src, dst))
-```
-
----
-
-## 7. BM25 Index — Implementation Details
-
-### Tokenization
-```
-input -> unicode normalization (NFC) -> lowercase -> split on non-alphanumeric -> filter stop words -> tokens
-```
-
-### Index structure
-```rust
-struct BM25Index {
-    // term -> list of (doc_id, term_frequency)
-    postings: HashMap<String, Vec<(u32, u32)>>,
-    // doc_id -> document length (token count)
-    doc_lengths: HashMap<u32, u32>,
-    // number of docs containing each term
-    doc_freqs: HashMap<String, u32>,
-    // total number of docs
-    num_docs: u32,
-    // average document length
-    avg_doc_len: f32,
-}
-```
-
-### Scoring
-```
-score(q, d) = Σ_t idf(t) * (tf(t,d) * (k1+1)) / (tf(t,d) + k1*(1 - b + b*|d|/avgdl))
-
-idf(t) = ln((N - df(t) + 0.5) / (df(t) + 0.5) + 1)
-
-k1 = 1.2, b = 0.75 (BM25 standard defaults)
-```
-
----
-
-## 8. HNSW Index — Implementation Details
-
-### Graph structure
-- L layers, each layer is a `HashMap<NodeId, Vec<NodeId>>`
-- Layer 0 (bottom) has all nodes; each higher layer has `1/ln(M)` fraction of nodes
-- M=16 neighbors per node in layer 0, M/2=8 in upper layers
-
-### Insertion
-```
-1. Assign layer l = floor(-ln(random) * 1/ln(M))
-2. If l > max_layer: new entry point
-3. For each layer from max_layer down to l+1: greedy walk to closest node (ef=1)
-4. For each layer from l down to 0: collect ef_construction candidates, apply diversity heuristic, add M neighbors
-```
-
-### Search
-```
-1. Enter at entry_point on top layer
-2. Greedy descent to layer 1: move to closest neighbor at each step  
-3. At layer 0: beam search with ef=max(ef_search, k) candidates
-4. Return top-k results
-```
-
-### Diversity heuristic
-When selecting M neighbors, use "simple heuristic":
-```
-for candidate in sorted(candidates, by_distance):
-  if distance(candidate, result_set) > distance(candidate, query):
-    add to result set
-    if |result_set| == M: stop
-```
-
-Avoids clustering all neighbors around the same dense region.
-
----
-
-## 9. Embedding Model
-
-**Current**: hash-projection-384 (custom, no external model)
+## 12. Desktop App (Tauri v2)
 
 ```
-embedding(text) = normalize(project(tokenize(text)))
+Needle_0.1.0_x64-setup.exe (NSIS installer)
+    │
+    installs → C:\Program Files\Needle\
+                   needle-app.exe       # Tauri wrapper
+                   needle.exe           # Bundled as resource
+                   WebView2Loader.dll   # Bundled (GNU toolchain requirement)
 
-tokenize: split on whitespace + punctuation, lowercase
-project: for each token t: hash = fnv1a(t); for each dim d: add sign(hash >> d & 1) / sqrt(num_tokens)
-normalize: L2 normalization to unit vector
+needle-app.exe on launch:
+    │
+    ├── std::process::Command::new("needle.exe")
+    │     .args(["serve", "--port", "7700", "--no-open"])
+    │     .spawn()
+    │
+    ├── Poll http://127.0.0.1:7700/ every 200ms (max 50 attempts = 10s)
+    │
+    └── WebviewWindowBuilder::new("main", WebviewUrl::External("http://localhost:7700"))
+          .title("Needle").inner_size(1280, 820).build()
+
+System tray: Open → show/focus window | Quit → kill needle.exe + exit
+WindowEvent::CloseRequested → hide window (don't kill server)
 ```
 
-**Tradeoffs:**
-- Pro: zero-dependency, instant startup, deterministic, sub-1ms per chunk
-- Con: no semantic generalization (synonyms won't match), lower recall than sentence-transformers
+**GNU toolchain note**: `WebView2Loader.dll` needs to be in the same directory as the exe for Windows DLL loader to find it. MSVC builds statically link it; GNU builds require the DLL. Bundled via Tauri resources → placed in `$INSTDIR` by NSIS.
 
-**Future**: pluggable backend interface for:
-- ONNX Runtime (all-MiniLM-L6-v2, nomic-embed-text)
-- llama.cpp (local embedding models)
-- API-based (OpenAI text-embedding-3-small)
-
----
-
-## 10. Deployment Options
-
-### Option A: Local binary (offline)
-
+**Dev workflow**:
 ```bash
-cargo build --release
-./target/release/needle init ~/code
-./target/release/needle serve
+cargo build --release --package needle      # build the server binary first
+cargo-tauri dev                             # opens native window (uses release binary)
+cargo-tauri build                           # produces NSIS + MSI installers
 ```
 
-Index stored at `~/.needle/index/`. No network traffic.
+---
 
-### Option B: Docker (self-hosted)
+## 13. MCP Server
+
+Runs over stdio (`needle mcp`). Implements the Model Context Protocol spec.
+
+Connect from any MCP client:
+```json
+{
+  "mcpServers": {
+    "needle": { "command": "needle", "args": ["mcp"] }
+  }
+}
+```
+
+| Tool | Input | Output |
+|------|-------|--------|
+| `search_code` | `query`, `limit`, `lang?` | Ranked chunks with snippets |
+| `find_callers` | `symbol` | All call sites into this symbol |
+| `find_callees` | `symbol` | All symbols called by this symbol |
+| `find_similar` | `query`, `limit` | k-NN by embedding distance |
+| `get_god_nodes` | `limit` | Top-N by degree centrality |
+| `get_endpoints` | — | All HTTP routes with method + path |
+| `get_communities` | — | Cluster labels for all nodes |
+| `get_surprises` | `limit` | Top-N cross-community edges |
+| `get_file_structure` | `path?` | Directory tree from index |
+| `get_stats` | — | Chunk count, node count, edge count, index size |
+| `explain` | `symbol` | LLM explanation (routes to configured provider) |
+
+---
+
+## 14. LLM Routing
+
+`needle explain` and the `/api/ask` web UI endpoint route to the first available provider:
+
+```
+1. Anthropic (ANTHROPIC_API_KEY)   → claude-haiku-4-5-20251001
+2. OpenAI    (OPENAI_API_KEY)      → gpt-4o-mini
+3. Groq      (GROQ_API_KEY)        → llama3-8b-8192
+4. Ollama    (OLLAMA_URL or default http://localhost:11434) → configured model
+```
+
+The query includes retrieved code chunks as context (RAG). No code leaves the machine unless the user configures a cloud LLM provider.
+
+---
+
+## 15. Cloud Mode (Docker)
+
+Activated when `RAILWAY_ENVIRONMENT` or `DOCKER` env var is set.
 
 ```bash
 docker build -t needle .
-docker run -p 8080:8080 -v needle_data:/data needle
+docker run -p 8080:8080 \
+  -e GITHUB_CLIENT_ID=... \
+  -e GITHUB_CLIENT_SECRET=... \
+  -e SESSION_SECRET=... \
+  -v needle_data:/data \
+  needle
 ```
 
-Dockerfile uses a 2-stage build: Rust 1.88 bookworm builder → Debian bookworm-slim runtime (~80MB). SQLite user DB is persisted in `/data` mount.
+Adds on top of local mode:
+- GitHub OAuth login (`/auth/github` → `/auth/callback`)
+- Per-user SQLite sessions table
+- Per-user encrypted API key storage
+- Index namespacing per user (`/data/<user_id>/`)
 
-### Option C: Railway
+Dockerfile: two-stage build (Rust builder image → Debian slim runtime). Port 8080.
 
-```bash
-railway login && railway init && railway up
+---
+
+## 16. Benchmarking (`needle bench`)
+
+```
+1. Index stats
+   → Total chunks, files, languages, index size, chunk type distribution
+
+2. HNSW recall@10
+   → Sample 1000 random query vectors from index
+   → For each: run brute-force exact k-NN and HNSW k-NN (k=10)
+   → recall@10 = |exact ∩ hnsw| / 10, averaged
+   → Report: mean, min, p5
+
+3. Query latency
+   → 100 representative queries through full hybrid pipeline
+   → Report: p50, p95, p99
+   → Breakdown: BM25 time / embedding time / HNSW time / RRF time
+
+4. Indexing throughput
+   → Re-index current corpus
+   → Report: chunks/sec (chunking), embeddings/sec, total wall time
 ```
 
-Set env vars: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `SESSION_SECRET`, `BASE_URL`, `PORT=8080`. Mount a 1GB volume at `/data`.
+---
 
-### Option D: Render
+## 17. Supported Languages
 
-- Runtime: Docker
-- Root directory: `/`
-- Start command: `needle serve`
-- Persistent disk: mount at `/data`
+| Language | Tree-sitter Grammar | Chunking | Call Graph |
+|----------|---------------------|----------|------------|
+| Rust | `tree-sitter-rust` | Functions, structs, impls, traits | ✓ |
+| Python | `tree-sitter-python` | Functions, classes, methods | ✓ |
+| TypeScript | `tree-sitter-typescript` | Functions, classes, arrow fns | ✓ |
+| JavaScript | `tree-sitter-typescript` (JS grammar) | Functions, classes, arrow fns | ✓ |
+| Go | `tree-sitter-go` | Functions, types, interfaces | ✓ |
+| Java | `tree-sitter-java` | Classes, methods | ✓ |
+| C / C++ | `tree-sitter-cpp` | Functions, structs | ✓ |
+| Markdown | — (section-aware) | Heading + paragraph splits | — |
+| PDF | `pdf-extract` | Text extraction + paragraph chunks | — |
+| Other | — (sliding window) | Fixed-size overlapping windows | — |
 
-### Option E: Fly.io
+---
+
+## 18. Configuration
+
+`~/.needle/needle.toml` (auto-created on first `needle init`):
 
 ```toml
-# fly.toml
-app = "needle"
-[build]
-  dockerfile = "Dockerfile"
-[[services]]
-  http_checks = []
-  internal_port = 8080
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-[mounts]
-  source = "needle_data"
-  destination = "/data"
+[index]
+directories = ["/home/user/code/my-project"]
+chunk_size = 512          # max tokens per chunk
+chunk_overlap = 64        # overlap between adjacent chunks (sliding window)
+
+[server]
+port = 7700
+host = "127.0.0.1"        # 0.0.0.0 for Docker/cloud
+
+[llm]
+provider = "anthropic"    # anthropic | openai | groq | ollama
+model = "claude-haiku-4-5-20251001"
+
+[graph]
+enable_call_graph = true
+enable_import_graph = true
 ```
 
----
+Environment variable overrides:
 
-## 11. Key Engineering Decisions
-
-### Decision 1: Single-file SPA embedded in binary
-
-The entire web UI is a single `ui.html` file embedded via `include_str!()` at compile time. This means:
-- Zero-dependency distribution: one binary serves everything
-- No CDN risk for the app itself (only D3/highlight.js/marked are CDN-loaded for file size)
-- Downside: every UI change requires a rebuild
-
-### Decision 2: Hash-projection embeddings over ONNX
-
-Avoids a 23MB ONNX Runtime dependency and model download step. The hash-projection approach gives ~80% of the utility for zero overhead. Semantic search is good enough for "describe the intent" queries; exact name queries fall through to BM25.
-
-### Decision 3: JSON storage over SQLite for the index
-
-The search index (chunks, BM25, HNSW, graph) uses plain JSON files:
-- Human-readable, debuggable with `jq`
-- No migration complexity
-- Acceptable for 100k-chunk codebases (JSON load time ~200ms)
-- Future: binary serialization with `rkyv` or `bincode` for >500k chunks
-
-SQLite is only used for the user/auth tables in cloud mode (structured relational data with concurrent writes).
-
-### Decision 4: Label propagation over Louvain for communities
-
-Label propagation is O(E) and converges in ~10 passes. Louvain is more accurate but O(E log V) and harder to implement correctly. For the purpose of "show developers which modules cluster together," label propagation is sufficient and understandable.
-
-### Decision 5: Same-file disambiguation for call resolution
-
-When a call target matches multiple nodes (e.g., `run` exists in 15 files), prefer the match in the same file as the caller. This eliminates >80% of false cross-file call edges for common short names, at the cost of missing some valid cross-file calls for identically-named functions.
-
-### Decision 6: Axum as the web server (over actix-web)
-
-Axum has cleaner tower/middleware integration, better type-safe routing, and more active ecosystem. actix-web was slightly faster in benchmarks but Needle is not CPU-bound on the serving side.
-
----
-
-## 12. Known Limitations & Future Work
-
-| Area | Current Limitation | Planned Fix |
-|------|-------------------|-------------|
-| Embeddings | Hash-projection (low recall) | ONNX/llama.cpp pluggable backend |
-| Index format | JSON (slow for >500k chunks) | rkyv binary serialization |
-| Call resolution | Same-file heuristic only | Type-inference-based resolution |
-| Languages | 8 languages | Add Ruby, PHP, Swift, Kotlin |
-| Incremental index | Full reindex on `reindex` | File-watcher based incremental |
-| Multi-index | One index per machine | Per-project index switching |
-| VS Code extension | Stub (empty) | Full sidebar + inline search |
-| PDF | Text extraction only | Table extraction, image captions |
-
----
-
-## 13. Performance Benchmarks (on Needle's own codebase)
-
-_Index: 364 nodes, 548 edges, 361 chunks, 35 files_
-
-| Operation | Time |
-|-----------|------|
-| Full reindex | ~1.2s |
-| BM25 query (p50) | ~1ms |
-| HNSW query (p50) | ~2ms |
-| Hybrid query (p50) | ~3ms |
-| Graph render (D3) | ~180ms first paint |
-| Label propagation (220 clusters) | ~4ms |
-
----
-
-_Last updated: 2026-06-25_
+| Variable | Effect |
+|----------|--------|
+| `NEEDLE_PORT` | Override server port |
+| `ANTHROPIC_API_KEY` | Enable Anthropic LLM |
+| `OPENAI_API_KEY` | Enable OpenAI LLM |
+| `GROQ_API_KEY` | Enable Groq LLM |
+| `OLLAMA_URL` | Override Ollama endpoint |
+| `GITHUB_CLIENT_ID` | Enable GitHub OAuth (cloud mode) |
+| `GITHUB_CLIENT_SECRET` | GitHub OAuth secret |
+| `SESSION_SECRET` | Cookie signing key |
+| `RAILWAY_ENVIRONMENT` | Auto-enable cloud mode |
