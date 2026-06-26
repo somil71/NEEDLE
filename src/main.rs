@@ -9,7 +9,7 @@ mod cli;
 #[command(about = "Local-first hybrid search engine — keyword + semantic, offline, instant")]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(clap::Subcommand)]
@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    match cli.command {
+    match cli.command.unwrap_or(Commands::Serve { port: 7700, no_open: false }) {
         Commands::Init { directories } => cli::init::run(directories).await?,
         Commands::Search { query, limit, all, no_color, compact, lang } => {
             cli::search::run(query, limit, all, no_color, compact, lang).await?
