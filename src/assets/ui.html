@@ -217,83 +217,85 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* PAGE: LANDING                                          */
 /* ────────────────────────────────────────────────────── */
 #page-home .hero {
-  padding: 96px 0 80px;
-  text-align: center;
+  padding: 72px 0 80px;
   position: relative;
-  overflow: hidden;
+  border-bottom: 1px solid var(--border);
 }
 #page-home .hero::before {
   content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 110% 65% at 50% -8%,  rgba(124,58,237,0.22) 0%, transparent 58%),
-    radial-gradient(ellipse 55%  50% at 82% 18%,  rgba(99,102,241,0.08) 0%, transparent 50%),
-    radial-gradient(ellipse 55%  50% at 18% 22%,  rgba(139,92,246,0.06) 0%, transparent 50%);
-  pointer-events: none;
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(124,58,237,0.55) 50%, transparent 95%);
 }
-#page-home .hero::after {
-  content: '';
-  position: absolute; inset: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse 85% 70% at 50% 40%, black 0%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 85% 70% at 50% 40%, black 0%, transparent 100%);
-  pointer-events: none;
+html.light #page-home .hero::before {
+  background: linear-gradient(90deg, transparent 5%, rgba(109,40,217,0.30) 50%, transparent 95%);
 }
-#page-home .hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 0.72rem; font-weight: 600;
-  color: #a78bfa; background: rgba(124,58,237,0.10);
-  border: 1px solid rgba(124,58,237,0.22);
-  border-radius: 20px; padding: 5px 13px;
-  margin-bottom: 32px; letter-spacing: 0.08em; text-transform: uppercase;
+
+/* ── Split layout ─────────────────────────────────────── */
+.hero-split {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 56px; align-items: center;
 }
-.eyebrow-dot {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: #7C3AED;
-  box-shadow: 0 0 7px rgba(124,58,237,0.9);
-  flex-shrink: 0;
+@media (max-width: 860px) {
+  .hero-split { grid-template-columns: 1fr; gap: 40px; }
+  .hero-right { order: -1; }
+}
+
+/* ── Left column ─────────────────────────────────────── */
+.hero-tag {
+  display: inline-block;
+  font-family: var(--mono); font-size: 0.75rem; font-weight: 400;
+  color: #a78bfa;
+  background: rgba(124,58,237,0.08);
+  border: 1px solid rgba(124,58,237,0.18);
+  border-radius: 4px; padding: 3px 9px;
+  margin-bottom: 28px; letter-spacing: 0;
+}
+html.light .hero-tag {
+  color: var(--accent); background: var(--accent-subtle);
+  border-color: rgba(109,40,217,0.22);
 }
 #page-home .hero h1 {
-  font-size: clamp(2.75rem, 6.5vw, 4.75rem);
-  max-width: 800px; margin: 0 auto 24px;
-  background: linear-gradient(175deg, #fff 0%, rgba(255,255,255,0.88) 40%, rgba(200,196,255,0.70) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  letter-spacing: -0.04em; line-height: 1.05; font-weight: 800;
+  font-size: clamp(2.1rem, 3.8vw, 3.125rem);
+  max-width: none; margin: 0 0 18px;
+  background: none; -webkit-background-clip: unset;
+  -webkit-text-fill-color: var(--text);
+  color: var(--text);
+  letter-spacing: -0.032em; line-height: 1.11; font-weight: 700;
 }
 html.light #page-home .hero h1 {
-  background: linear-gradient(175deg, #09090C 0%, #3B3B52 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background: none; -webkit-background-clip: unset;
+  -webkit-text-fill-color: var(--text);
+  color: var(--text);
 }
-#page-home .hero > .container > p {
-  font-size: 1.125rem; max-width: 500px; margin: 0 auto 40px;
-  line-height: 1.75; color: var(--text-2);
+.hero-sub {
+  font-size: 0.9375rem; max-width: 400px;
+  line-height: 1.75; color: var(--text-2); margin-bottom: 32px;
 }
 #page-home .hero-actions {
-  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  display: flex; gap: 10px; flex-wrap: wrap;
   margin-bottom: 24px;
 }
 #page-home .hero-proof {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center;
   gap: 10px; flex-wrap: wrap;
   font-size: 0.78rem; color: var(--text-3); letter-spacing: 0.01em;
 }
 #page-home .hero-proof-sep { opacity: 0.35; }
+.hero-proof-link { color: var(--text-3) !important; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--text-3); }
+.hero-proof-link:hover { color: var(--text-2) !important; text-decoration: none; }
 
 /* ── Live demo widget ────────────────────────────────── */
 .hero-demo {
-  margin: 56px auto 0;
-  max-width: 740px;
-  border-radius: 16px;
+  margin: 0;
+  max-width: none;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.05),
     0 8px 24px rgba(0,0,0,0.28),
-    0 32px 80px rgba(0,0,0,0.45);
+    0 24px 56px rgba(0,0,0,0.38);
   text-align: left;
 }
 .hero-demo-bar {
@@ -779,11 +781,14 @@ footer {
 }
 .footer-inner {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
   align-items: start;
-  gap: 40px;
-  padding: 48px 0 32px;
+  gap: 32px;
+  padding: 40px 0 28px;
   border-top: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .footer-inner { grid-template-columns: 1fr 1fr; gap: 24px; }
 }
 .footer-brand { display: flex; flex-direction: column; gap: 8px; }
 .footer-logo { font-size: 1rem; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
@@ -1116,6 +1121,10 @@ footer {
   padding: 2px 7px; border-radius: 3px;
   background: var(--accent-subtle); border: 1px solid rgba(124,58,237,0.25); color: #a78bfa;
 }
+html.light .feat-chip { color: var(--accent); }
+html.light .demo-badge.sem  { color: #6D28D9; }
+html.light .demo-badge.bm25 { color: #0369A1; background: rgba(6,182,212,0.08); }
+html.light .demo-badge.both { color: #065F46; background: rgba(16,185,129,0.08); }
 
 /* ── Horizontal divider with label ─────────────────────── */
 .divider-label {
@@ -1190,51 +1199,55 @@ footer {
   <!-- ── HERO ───────────────────────────────────────────── -->
   <div class="hero">
     <div class="container">
-      <div class="hero-eyebrow">
-        <span class="eyebrow-dot"></span>
-        Local &middot; Private &middot; Offline-first
-      </div>
-      <h1>Understand any codebase<br>in seconds, not hours.</h1>
-      <p>Needle indexes your project with hybrid BM25 + HNSW vector search, builds a live call graph, and plugs into any AI tool as an MCP server — without sending your code anywhere.</p>
-      <div class="hero-actions">
-        <button class="btn btn-primary btn-lg" onclick="nav('search')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Try search live
-        </button>
-        <button class="btn btn-ghost btn-lg" onclick="nav('setup')">Get started →</button>
-        <a class="btn btn-ghost btn-lg" href="https://github.com/somil71/needle" target="_blank">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          GitHub
-        </a>
-      </div>
-      <div class="hero-proof">
-        <span>Open source</span>
-        <span class="hero-proof-sep">·</span>
-        <span>MIT license</span>
-        <span class="hero-proof-sep">·</span>
-        <span>No account needed</span>
-        <span class="hero-proof-sep">·</span>
-        <span>8 languages</span>
-        <span class="hero-proof-sep">·</span>
-        <span>Works fully offline</span>
-      </div>
+      <div class="hero-split">
 
-      <!-- Live demo -->
-      <div class="hero-demo">
-        <div class="hero-demo-bar">
-          <div class="dots">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <!-- Left: copy + CTAs -->
+        <div class="hero-left">
+          <div class="hero-tag">// local &middot; private &middot; offline-first</div>
+          <h1>Understand your<br>codebase.<br>In seconds.</h1>
+          <p class="hero-sub">Hybrid BM25 + HNSW vector search, live call graph, and 11 MCP tools — all indexed on your machine. Nothing leaves.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" onclick="nav('search')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Try search live
+            </button>
+            <a class="btn btn-ghost btn-lg" href="https://github.com/somil71/needle" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              GitHub
+            </a>
+            <button class="btn btn-ghost btn-lg" onclick="nav('setup')">Get started →</button>
           </div>
-          <span class="title">needle — live search demo</span>
+          <div class="hero-proof">
+            <span>Open source</span>
+            <span class="hero-proof-sep">·</span>
+            <a href="https://github.com/somil71/needle/blob/main/LICENSE" target="_blank" rel="noopener" class="hero-proof-link">MIT license</a>
+            <span class="hero-proof-sep">·</span>
+            <span>No account needed</span>
+            <span class="hero-proof-sep">·</span>
+            <span>&lt;50 ms search</span>
+          </div>
         </div>
-        <div class="hero-demo-search">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="hero-search-input" placeholder="Try: authentication handler, parse_request, error types…" autocomplete="off" spellcheck="false">
+
+        <!-- Right: live demo -->
+        <div class="hero-right">
+          <div class="hero-demo">
+            <div class="hero-demo-bar">
+              <div class="dots">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+              </div>
+              <span class="title">needle — live search demo</span>
+            </div>
+            <div class="hero-demo-search">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="hero-search-input" placeholder="Try: authentication handler, parse_request…" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="hero-demo-results" id="hero-demo-results">
+              <div class="hero-demo-empty">Type anything above to search your indexed codebase.</div>
+            </div>
+            <div class="hero-demo-timing" id="hero-demo-timing"></div>
+          </div>
         </div>
-        <div class="hero-demo-results" id="hero-demo-results">
-          <div class="hero-demo-empty">Type anything above to search your indexed codebase.</div>
-        </div>
-        <div class="hero-demo-timing" id="hero-demo-timing"></div>
+
       </div>
     </div>
   </div>
@@ -1944,7 +1957,7 @@ BASE_URL=https://your-domain.com</code></pre><button class="copy-btn">Copy</butt
         </div>
       </div>
       <div class="footer-bottom">
-        <span class="footer-copy">© 2026 Somil Jha. Open source under MIT license.</span>
+        <span class="footer-copy">© 2026 Somil Jha · <a href="https://github.com/somil71/needle/blob/main/LICENSE" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:2px">MIT license</a></span>
         <span class="footer-status">
           <span class="dot" id="footer-dot"></span>
           <span id="footer-status-text">Checking status…</span>
