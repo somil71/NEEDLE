@@ -1074,18 +1074,32 @@ footer {
 .faq-a p:last-child { margin-bottom: 0; }
 .faq-a ul { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 
+/* ── Pillars strip ────────────────────────────────────── */
+.pillar-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+@media (max-width: 720px) { .pillar-strip { grid-template-columns: 1fr 1fr; gap: 32px 24px; } }
+@media (max-width: 480px) { .pillar-strip { grid-template-columns: 1fr; gap: 28px; } }
+.pillar { padding: 0 28px; border-left: 1px solid var(--border); }
+.pillar:first-child { padding-left: 0; border-left: none; }
+.pillar-icon {
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+  color: var(--text-3);
+}
+.pillar h4 { font-size: 0.9rem; font-weight: 600; margin: 0 0 8px; color: var(--text); }
+.pillar p { font-size: 0.8125rem; line-height: 1.7; color: var(--text-2); margin: 0; }
+
 /* ── About / author section ─────────────────────────────── */
 .about-section { padding: 80px 0 60px; }
-.about-grid { display: grid; grid-template-columns: 1fr auto; gap: 64px; align-items: start; }
+.about-grid { display: grid; grid-template-columns: 1fr auto; gap: 64px; align-items: center; }
 @media (max-width: 720px) { .about-grid { grid-template-columns: 1fr; gap: 32px; } }
 .about-left h2 { margin-bottom: 16px; }
 .about-left p { font-size: 0.9375rem; line-height: 1.8; margin-bottom: 12px; }
-.about-left p:last-of-type { margin-bottom: 24px; }
-.social-links { display: flex; gap: 10px; flex-wrap: wrap; }
+.about-left p:last-of-type { margin-bottom: 20px; }
+.social-links { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .social-link {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 9px 18px; border-radius: var(--radius);
-  font-size: 0.875rem; font-weight: 500; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--radius);
+  font-size: 0.8rem; font-weight: 500; text-decoration: none;
   border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
   transition: all 0.15s;
 }
@@ -1712,33 +1726,33 @@ BASE_URL=https://your-domain.com</code></pre><button class="copy-btn">Copy</butt
 
     <!-- ── PRIVATE BY DESIGN ───────────────────────────── -->
     <div class="section">
-      <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
-        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
-          <div class="feature-icon" style="background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.2);color:#10B981;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <div class="pillar-strip">
+        <div class="pillar">
+          <div class="pillar-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           </div>
-          <h3>Your code never leaves</h3>
-          <p>Index lives in <code>~/.needle/</code>. No telemetry, no analytics, no servers. 100% offline.</p>
+          <h4>Your code never leaves</h4>
+          <p>Index lives in <code>~/.needle/</code>. No telemetry, no analytics, no servers. Fully offline.</p>
         </div>
-        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
-          <div class="feature-icon" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.2);color:#F59E0B;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div class="pillar">
+          <div class="pillar-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           </div>
-          <h3>Sub-50ms searches</h3>
-          <p>HNSW index lives in memory. BM25 uses inverted postings lists. No network round-trips ever.</p>
+          <h4>Sub-50ms searches</h4>
+          <p>HNSW index in memory. No network calls, no round-trips — results in under 50 ms every time.</p>
         </div>
-        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
-          <div class="feature-icon" style="background:rgba(99,102,241,0.1);border-color:rgba(99,102,241,0.2);color:#818cf8;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <div class="pillar">
+          <div class="pillar-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
           </div>
-          <h3>AST-aware chunking</h3>
-          <p>Chunks by functions and classes, not arbitrary line windows. Meaning-preserving units, every time.</p>
+          <h4>AST-aware chunking</h4>
+          <p>Chunks by functions and classes, not line windows. Meaning-preserving units, every time.</p>
         </div>
-        <div class="feature-card" style="border-color:transparent;background:transparent;padding:12px 0;">
-          <div class="feature-icon" style="background:rgba(236,72,153,0.1);border-color:rgba(236,72,153,0.2);color:#f472b6;">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+        <div class="pillar">
+          <div class="pillar-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
           </div>
-          <h3>Free &amp; open source</h3>
+          <h4>Free &amp; open source</h4>
           <p>No paid tiers. No feature limits. MIT license. Fork it, self-host it, contribute.</p>
         </div>
       </div>
@@ -1867,44 +1881,47 @@ BASE_URL=https://your-domain.com</code></pre><button class="copy-btn">Copy</butt
     <div class="section about-section">
       <div class="about-grid">
         <div class="about-left">
-          <h2>Built by one developer, for every developer.</h2>
-          <p>Needle started as a personal frustration: existing code search tools either required uploading your source to a cloud service, needed complex infrastructure, or gave shallow keyword results that missed the actual intent.</p>
-          <p>The goal was a single binary that indexes any local codebase, runs an actual HNSW vector index, builds a real call graph with Axum/Express endpoint detection, and plugs into AI tools as an MCP server — all without sending a single byte of your code anywhere.</p>
-          <p>It's open source, MIT licensed, and actively developed. If you find a bug, have a feature request, or just want to say hi — find me on GitHub or LinkedIn.</p>
+          <h2>Built by a developer, for developers.</h2>
+          <p>Most code search tools are cloud-dependent, shallow, or both. Needle is a single binary — no server, no upload, no vendor. It builds a real HNSW vector index, parses ASTs with tree-sitter, and runs hybrid BM25 + semantic search entirely on your hardware.</p>
+          <p>Plug it into any AI tool as an MCP server. Your code never leaves.</p>
           <div class="social-links">
             <a class="social-link" href="https://github.com/somil71" target="_blank" rel="noopener">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-              github.com/somil71
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+              GitHub · somil71
             </a>
             <a class="social-link" href="https://linkedin.com/in/somil-jha" target="_blank" rel="noopener">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
-              linkedin.com/in/somil-jha
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+              LinkedIn · somil-jha
             </a>
             <a class="social-link" href="mailto:somilwork77@gmail.com">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               somilwork77@gmail.com
             </a>
-            <a class="social-link" href="https://github.com/somil71/needle" target="_blank" rel="noopener">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
-              Star on GitHub
-            </a>
           </div>
+          <a class="btn btn-ghost" href="https://github.com/somil71/needle" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            ⭐ Star on GitHub
+          </a>
         </div>
         <div class="about-card">
           <div class="about-avatar">SJ</div>
           <div>
             <div class="about-name">Somil Jha</div>
-            <div class="about-role">CS + AI/ML · IILM University</div>
+            <div class="about-role">Independent builder · AI/ML &amp; Full-Stack</div>
           </div>
-          <div style="font-size:0.875rem;color:var(--text-2);line-height:1.6;">
-            Building production-grade systems end-to-end. GDG Campus Lead. Two-time SIH winner.
+          <div style="font-size:0.8125rem;color:var(--text-2);line-height:1.65;">
+            Builds ML backends and full-stack systems from scratch — custom vector search, multi-tenant APIs, production pipelines. No abstractions where none are needed.
+          </div>
+          <div style="font-size:0.75rem;color:var(--accent);margin-top:-4px;">
+            Open to client work · <a href="mailto:somilwork77@gmail.com" style="color:var(--accent);text-decoration:underline;text-underline-offset:2px;">somilwork77@gmail.com</a>
           </div>
           <div class="about-tag-row">
-            <span class="about-tag">Rust</span>
             <span class="about-tag">Python</span>
             <span class="about-tag">TypeScript</span>
-            <span class="about-tag">AI/ML</span>
-            <span class="about-tag">Delhi</span>
+            <span class="about-tag">Rust</span>
+            <span class="about-tag">FastAPI</span>
+            <span class="about-tag">Next.js</span>
+            <span class="about-tag">PyTorch</span>
           </div>
         </div>
       </div>
@@ -2549,26 +2566,54 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
 <!-- ══════════════════════════════════════════════════ -->
 <div id="page-download" class="page">
   <div class="container" style="max-width:860px;">
-    <div style="padding-top:48px;margin-bottom:48px;">
+    <div style="padding-top:48px;margin-bottom:40px;">
       <h1 style="margin-bottom:12px;">Download</h1>
-      <p style="font-size:1.05rem;">Pick the version for your system. All binaries are self-contained — no runtime or dependencies needed.</p>
+      <p style="font-size:1.05rem;color:var(--text-2);">Pre-built binaries are coming. Until then, build from source — Rust 1.75+ and two minutes is all you need.</p>
+    </div>
+
+    <!-- Build from source — primary path -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px 32px;margin-bottom:48px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        <span style="font-size:0.75rem;font-family:var(--mono);color:var(--accent);font-weight:500;letter-spacing:0.04em;">WORKS TODAY</span>
+      </div>
+      <h2 style="margin:0 0 8px;font-size:1.25rem;">Build from source</h2>
+      <p style="margin-bottom:20px;color:var(--text-2);font-size:0.9375rem;">Requires Rust 1.75+. Install via <a href="https://rustup.rs" target="_blank" rel="noopener" style="color:var(--accent);">rustup.rs</a> if you don't have it.</p>
+      <div class="code-copy"><pre><code>git clone https://github.com/somil71/needle
+cd needle
+cargo build --release
+# Binary is at ./target/release/needle
+./target/release/needle serve</code></pre><button class="copy-btn">Copy</button></div>
+      <div style="margin-top:16px;">
+        <a class="btn btn-primary" href="https://github.com/somil71/needle" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a class="btn btn-ghost" href="#/setup" onclick="nav('setup')" style="margin-left:8px;">Setup guide →</a>
+      </div>
+    </div>
+
+    <!-- Planned binaries — coming soon -->
+    <div style="margin-bottom:16px;">
+      <h2 style="font-size:1.1rem;margin-bottom:4px;">Planned releases</h2>
+      <p style="font-size:0.875rem;color:var(--text-3);">Pre-built binaries for each platform will be published to <a href="https://github.com/somil71/needle/releases" target="_blank" rel="noopener" style="color:var(--text-2);">GitHub Releases</a>. Watch the repo to be notified.</p>
     </div>
 
     <div class="download-grid">
 
-      <div class="download-card">
+      <div class="download-card" style="opacity:0.7;">
         <div class="download-card-header">
           <div class="download-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           </div>
         </div>
         <h3>Windows</h3>
-        <p>64-bit. Works on Windows 10 and 11. Download, rename to <code>needle.exe</code>, put it on your PATH.</p>
+        <p>64-bit. Windows 10 and 11. Rename to <code>needle.exe</code>, put it on your PATH.</p>
         <pre><code>needle-windows-x64.exe</code></pre>
-        <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download for Windows</a>
+        <a class="btn btn-ghost" href="https://github.com/somil71/needle/releases" target="_blank" rel="noopener">Watch for release →</a>
       </div>
 
-      <div class="download-card">
+      <div class="download-card" style="opacity:0.7;">
         <div class="download-card-header">
           <div class="download-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>
@@ -2578,43 +2623,33 @@ cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
         <p>Two builds — pick the right one for your Mac.</p>
         <pre><code>needle-macos-arm64   # M1 / M2 / M3
 needle-macos-x64     # Intel</code></pre>
-        <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download for macOS</a>
+        <a class="btn btn-ghost" href="https://github.com/somil71/needle/releases" target="_blank" rel="noopener">Watch for release →</a>
       </div>
 
-      <div class="download-card">
+      <div class="download-card" style="opacity:0.7;">
         <div class="download-card-header">
           <div class="download-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
           </div>
         </div>
         <h3>Linux</h3>
-        <p>Static binary built with musl. Works on any x86-64 Linux distro, no glibc version requirement.</p>
+        <p>Static musl binary. Works on any x86-64 distro, no glibc version requirement.</p>
         <pre><code>needle-linux-x64</code></pre>
-        <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download for Linux</a>
+        <a class="btn btn-ghost" href="https://github.com/somil71/needle/releases" target="_blank" rel="noopener">Watch for release →</a>
       </div>
 
-      <div class="download-card">
+      <div class="download-card" style="opacity:0.7;">
         <div class="download-card-header">
           <div class="download-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
           </div>
         </div>
         <h3>VS Code Extension</h3>
-        <p>Search your codebase and browse the knowledge graph from inside VS Code.</p>
+        <p>Search and graph from inside VS Code. Install via VSIX when released.</p>
         <pre><code>needle-search-0.5.0.vsix</code></pre>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <a class="btn btn-primary" href="https://github.com/somil71/needle/releases/latest" target="_blank">Download .vsix</a>
-        </div>
+        <a class="btn btn-ghost" href="https://github.com/somil71/needle/releases" target="_blank" rel="noopener">Watch for release →</a>
       </div>
 
-    </div>
-
-    <div style="margin-top:40px;">
-      <h2 style="margin-bottom:12px;">Build from source</h2>
-      <p style="margin-bottom:16px;">If you want to build it yourself or contribute, you'll need Rust 1.75+.</p>
-      <div class="code-copy"><pre><code>git clone https://github.com/somil71/needle
-cd needle
-cargo install --path .</code></pre><button class="copy-btn">Copy</button></div>
     </div>
 
   </div>
