@@ -29,3 +29,19 @@ needle-vscode/out/
 *.db
 *.db-wal
 *.db-shm
+
+# Generated outputs
+GRAPH_REPORT.md
+graph.html
+graph_check.html
+
+# Dev scripts
+check.py
+demo.py
+generate_report.py
+
+# Claude internal config
+.claude/
+
+# Tauri bundled DLL (platform-specific, not for source control)
+src-tauri/WebView2Loader.dll

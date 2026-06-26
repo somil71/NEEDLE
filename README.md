@@ -1,78 +1,70 @@
-# Needle — Local-first Code Search & Graph Analysis
+# Needle — Local-first Code Search
 
-> Index any codebase. Search it semantically. Map its call graph. Ask it questions. Run it as an MCP server for AI tools. Everything offline.
+> Index any codebase. Search it semantically. Map its call graph. Plug it into any AI tool. Everything offline.
 
 [![MIT License](https://img.shields.io/badge/license-MIT-7C3AED)](LICENSE)
 [![Built with Rust](https://img.shields.io/badge/built_with-Rust-orange)](https://www.rust-lang.org/)
+[![Release](https://img.shields.io/github/v/release/somil71/NEEDLE?color=7C3AED)](https://github.com/somil71/NEEDLE/releases)
 
 ---
 
 ## What is Needle?
 
-Needle is a single binary that turns a source directory into a queryable, graphable, AI-ready knowledge base — without sending a single byte of your code to the cloud.
+Needle is a local-first code search engine that runs entirely on your machine. No cloud, no API keys, no data leaving your system.
 
-**The problem it solves:** existing code search tools either require uploading your source to a cloud service, need complex infrastructure (Elasticsearch, embeddings APIs), or give shallow keyword results that miss intent. Needle runs entirely on your machine and gives you:
-
-- Hybrid BM25 + HNSW vector search with Reciprocal Rank Fusion
-- A live interactive call graph (D3 force simulation) with endpoint detection
-- Architectural reports: god nodes, communities, surprise edges
-- An MCP server that plugs directly into Claude Code, Cursor, Windsurf, Copilot
-- RAG-based Q&A routing to Anthropic → OpenAI → Groq → Ollama
+- **Hybrid search** — BM25 keyword + HNSW vector search fused via Reciprocal Rank Fusion, sub-50ms
+- **Call graph** — live D3 force graph with endpoint detection and architectural analysis
+- **MCP server** — 11 tools for Claude Code, Cursor, Windsurf, Copilot
+- **Desktop app** — native window via Tauri, or run headless as a CLI / Docker container
 
 ---
 
-## Quick start
+## Install
+
+### Windows (Desktop App)
+
+Download **[Needle_0.1.0_x64-setup.exe](https://github.com/somil71/NEEDLE/releases/download/v0.1.0/Needle_0.1.0_x64-setup.exe)** and run the installer. Needle appears in your Start Menu.
+
+### VS Code Extension
+
+Download **[needle-search-0.5.0.vsix](https://github.com/somil71/NEEDLE/releases/download/v0.1.0/needle-search-0.5.0.vsix)** and install via:
+```
+Extensions panel → ⋯ → Install from VSIX
+```
+
+### Build from Source
 
 ```bash
-# Build from source (requires Rust 1.75+)
-git clone https://github.com/somil71/needle
-cd needle
+git clone https://github.com/somil71/NEEDLE
+cd NEEDLE
 cargo build --release
-sudo cp target/release/needle /usr/local/bin/
+# Binary at: target/release/needle
+```
 
+---
+
+## Quick Start (CLI)
+
+```bash
 # Index a project
 needle init ~/code/my-project
 
 # Open the web UI
 needle serve
 # → http://localhost:7700
+
+# Search from terminal
+needle search "authentication middleware"
+
+# Start MCP server for AI tools
+needle mcp
 ```
 
 ---
 
-## Feature overview
+## MCP Integration
 
-| Feature | Command | Description |
-|---------|---------|-------------|
-| Hybrid search | `needle search` | BM25 + HNSW + RRF, <50ms |
-| Web UI | `needle serve` | Full-featured browser app |
-| Call graph | `needle graph` | D3 force graph, exportable |
-| Architecture report | `needle report` | God nodes, communities, surprises |
-| MCP server | `needle mcp` | 11 tools for AI clients |
-| Rebuild index | `needle reindex` | Re-scan after code changes |
-| Benchmarks | `needle bench` | Latency, recall, throughput |
-| Status | `needle status` | Index health and stats |
-
----
-
-## Supported languages
-
-| Language | Chunking | Call graph |
-|----------|----------|------------|
-| Rust | AST (functions, structs, impls, traits) | Full |
-| Python | AST (functions, classes, methods) | Full |
-| TypeScript / JavaScript | AST (functions, classes, arrow fns) | Full |
-| Go | AST (functions, types, interfaces) | Full |
-| Java | AST (classes, methods) | Full |
-| C / C++ | AST (functions, structs) | Full |
-| Markdown | Section-by-section prose | — |
-| PDF | Text extraction + paragraph chunks | — |
-
----
-
-## MCP server — 11 tools for AI agents
-
-Run `needle mcp` to start a stdio MCP server. Connect it to any MCP-compatible AI tool:
+Connect Needle to any MCP-compatible AI tool:
 
 ```json
 {
@@ -85,13 +77,19 @@ Run `needle mcp` to start a stdio MCP server. Connect it to any MCP-compatible A
 }
 ```
 
-| Tool | What it does |
+**Claude Code:** `claude mcp add needle needle mcp`
+
+**Cursor / Windsurf:** add to `.cursor/mcp.json` or `.windsurf/mcp.json`
+
+### Available MCP Tools
+
+| Tool | Description |
 |------|-------------|
 | `search_code` | Hybrid keyword + semantic search |
 | `find_callers` | Who calls a given function? |
 | `find_callees` | What does a function call? |
-| `find_similar` | Find semantically similar chunks |
-| `get_god_nodes` | Top N highest-degree symbols |
+| `find_similar` | Semantically similar code chunks |
+| `get_god_nodes` | Highest-degree symbols |
 | `get_endpoints` | All detected HTTP routes |
 | `get_communities` | Label-propagation clusters |
 | `get_surprises` | Cross-community edges |
@@ -99,18 +97,24 @@ Run `needle mcp` to start a stdio MCP server. Connect it to any MCP-compatible A
 | `get_stats` | Index summary |
 | `explain` | LLM explanation of a symbol |
 
-**Claude Code:**
-```bash
-claude mcp add needle needle mcp
-```
+---
 
-**Cursor / Windsurf:** add to `.cursor/mcp.json` or `.windsurf/mcp.json`
+## Supported Languages
 
-**VS Code Copilot:** add to `.vscode/settings.json` under `github.copilot.chat.mcp.servers`
+| Language | Chunking | Call Graph |
+|----------|----------|------------|
+| Rust | AST (functions, structs, impls, traits) | ✓ |
+| Python | AST (functions, classes, methods) | ✓ |
+| TypeScript / JavaScript | AST (functions, classes, arrow fns) | ✓ |
+| Go | AST (functions, types, interfaces) | ✓ |
+| Java | AST (classes, methods) | ✓ |
+| C / C++ | AST (functions, structs) | ✓ |
+| Markdown | Section-by-section prose | — |
+| PDF | Text extraction + paragraph chunks | — |
 
 ---
 
-## Cloud deployment (Docker)
+## Cloud / Docker
 
 ```bash
 docker build -t needle .
@@ -122,161 +126,33 @@ docker run -p 8080:8080 \
   needle
 ```
 
-Cloud mode adds GitHub OAuth, per-user API keys, and multi-repo support. Deploy to Railway, Render, or any Docker host. See the [Dockerfile](Dockerfile) — it's a two-stage Rust build into a minimal Debian runtime.
+Cloud mode adds GitHub OAuth and multi-repo support. Deploy to Railway, Render, or any Docker host.
 
 ---
 
-## Architecture overview
+## Architecture
 
 ```
-needle/
-├── src/
-│   ├── main.rs              # CLI entry (clap)
-│   ├── schema.rs            # Chunk, Language, NodeKind types
-│   ├── config.rs            # needle.toml + env config
-│   ├── error.rs             # Error types
-│   ├── chunking/
-│   │   ├── code.rs          # Tree-sitter AST chunking
-│   │   └── prose.rs         # Paragraph + PDF chunking
-│   ├── indexing/
-│   │   ├── bm25.rs          # Inverted index, BM25 scoring
-│   │   └── hnsw.rs          # HNSW graph, ef/M config
-│   ├── query/
-│   │   ├── mod.rs           # QueryEngine
-│   │   └── fusion.rs        # Reciprocal Rank Fusion
-│   ├── embedding/
-│   │   └── mod.rs           # Hash-projection 384-dim embeddings
-│   ├── graph/
-│   │   └── mod.rs           # CodeGraph, extraction passes, communities
-│   ├── storage/
-│   │   └── mod.rs           # JSON index persistence
-│   ├── watcher/             # inotify file watcher
-│   └── assets/
-│       ├── ui.html          # Web UI (single-file SPA, compile-time embedded)
-│       └── graph_template.html  # Standalone D3 graph template
-├── cli/
-│   ├── init.rs              # `needle init`
-│   ├── serve.rs             # `needle serve` + all API endpoints
-│   ├── mcp.rs               # MCP stdio server
-│   ├── report.rs            # `needle report`
-│   ├── bench.rs             # `needle bench`
-│   └── search.rs            # `needle search` (CLI mode)
-├── server/
-│   ├── index_pipeline.rs    # Full indexing pipeline
-│   └── users.rs             # User/auth/API-key management (SQLite)
-├── Dockerfile               # Two-stage Rust → Debian build
-├── Cargo.toml
-└── README.md
+src/
+├── main.rs              # CLI entry (clap)
+├── lib.rs               # Library crate root
+├── schema.rs            # Chunk, Language, NodeKind types
+├── chunking/            # Tree-sitter AST + prose chunking
+├── indexing/            # BM25 inverted index + HNSW graph
+├── query/               # QueryEngine + Reciprocal Rank Fusion
+├── embedding/           # Hash-projection 384-dim embeddings
+├── graph/               # CodeGraph, communities, god nodes
+├── storage/             # JSON index persistence
+├── server/              # Axum HTTP server + API routes
+├── watcher/             # File watcher (live reindex)
+└── assets/ui.html       # Web UI (single-file SPA, embedded at compile time)
+
+src-tauri/               # Tauri desktop app wrapper
+needle-vscode/           # VS Code extension
 ```
-
-### Data flow
-
-```
-source files
-    │
-    ▼
-chunking layer (tree-sitter AST / prose / PDF)
-    │
-    ├──→ BM25 inverted index  ──┐
-    │                            ├──→ RRF fusion ──→ QueryEngine
-    └──→ HNSW vector index   ──┘
-    │
-    └──→ CodeGraph (nodes + edges)
-             │
-             ├──→ Web UI (D3 force graph)
-             ├──→ `needle graph` (standalone HTML)
-             └──→ `needle report` (Markdown)
-```
-
-### Indexes
-
-**BM25** (`indexing/bm25.rs`):
-- Tokenization + Unicode normalization
-- Postings lists with term frequencies
-- BM25 scoring (k1=1.2, b=0.75)
-- Soft-delete with periodic compaction
-
-**HNSW** (`indexing/hnsw.rs`):
-- Multi-layer navigable small world graph
-- Diversity heuristic for neighbor selection
-- Configurable M (max neighbors) and ef (search width)
-- 384-dimension hash-projection embeddings (no ONNX needed)
-
-**CodeGraph** (`graph/mod.rs`):
-- Pass 1: definition extraction (all node kinds)
-- Pass 1.5: endpoint detection (Axum, Express, FastAPI routes)
-- Pass 2: call + import extraction with same-file disambiguation
-- Community detection: label propagation on call/import edges
-- God nodes: degree centrality ranking
-- Surprise edges: cross-community calls
-
-### Storage
-
-All index files live in `~/.needle/index/`:
-
-| File | Contents |
-|------|----------|
-| `chunks.json` | Dict of chunk objects keyed by ID |
-| `graph.json` | Nodes, edges, stats |
-| `filemap.json` | File path → chunk ID mapping |
-| `meta.json` | Index metadata (model, timestamp) |
-
----
-
-## Development
-
-```bash
-# Run with debug logging
-RUST_LOG=needle=debug cargo run -- search "query"
-
-# Run tests
-cargo test
-
-# Run benchmarks (criterion)
-cargo bench
-
-# Build release binary
-cargo build --release
-
-# Watch and rebuild (cargo-watch)
-cargo watch -x "build"
-```
-
-### Adding a new language
-
-1. Add a variant to `Language` enum in `src/schema.rs`
-2. Add `from_extension` and `display_name` matches
-3. Add a tree-sitter grammar crate to `Cargo.toml`
-4. Add the chunking logic in `src/chunking/code.rs`
-5. Add graph extraction in `src/graph/mod.rs` `extract_defs` and `extract_calls`
-
----
-
-## Performance targets
-
-| Metric | Target | Achieved |
-|--------|--------|---------|
-| Query latency p50 | <5ms | ~3ms |
-| Query latency p99 | <15ms | ~11ms |
-| HNSW recall@10 | ≥95% | ~97% |
-| Cold start (100k chunks) | <500ms | ~380ms |
-| Incremental re-index | <200ms/file | ~140ms |
-| Memory (100k chunks) | <300MB | ~260MB |
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
----
-
-## Author
-
-**Somil Jha** — CS + AI/ML, IILM University, Delhi
-
-- GitHub: [github.com/somil71](https://github.com/somil71)
-- LinkedIn: [linkedin.com/in/somil-jha](https://linkedin.com/in/somil-jha)
-- Email: somilwork77@gmail.com
-
-Built as a production-grade tool to solve a real problem: understanding large codebases fast, offline, and privately.
+MIT — see [LICENSE](LICENSE)
