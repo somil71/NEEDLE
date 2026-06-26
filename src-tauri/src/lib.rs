@@ -12,7 +12,6 @@ static SERVER: Mutex<Option<Child>> = Mutex::new(None);
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             // Start the needle server in the background
             let needle_bin = resolve_needle_binary(app.handle());
