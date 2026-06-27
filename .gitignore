@@ -45,3 +45,6 @@ generate_report.py
 
 # Tauri bundled DLL (platform-specific, not for source control)
 src-tauri/WebView2Loader.dll
+
+# Tauri auto-generated IDE schemas
+src-tauri/gen/

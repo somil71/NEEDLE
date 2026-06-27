@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tower_cookies::{Cookie, Cookies};
 
-use super::users::{create_session, get_session_user, open_db, upsert_user};
+use super::users::{create_session, get_session_user, pool, upsert_user};
 
 // ── GitHub API types ────────────────────────────────────────────────────────
 
@@ -136,23 +136,23 @@ pub async fn auth_callback(
     };
 
     // Upsert user in DB + create session
-    let conn = match open_db() {
-        Ok(c) => c,
+    let db = match pool().await {
+        Ok(p) => p,
         Err(e) => return Html(error_page(&format!("DB error: {e}"))).into_response(),
     };
 
-    let user = match upsert_user(&conn, gh_user.id, &gh_user.login, &gh_user.avatar_url, gh_user.email.as_deref()) {
+    let user = match upsert_user(db, gh_user.id, &gh_user.login, &gh_user.avatar_url, gh_user.email.as_deref()).await {
         Ok(u) => u,
         Err(e) => return Html(error_page(&format!("DB upsert error: {e}"))).into_response(),
     };
 
-    let session_token = match create_session(&conn, &user.id) {
+    let session_token = match create_session(db, &user.id).await {
         Ok(t) => t,
         Err(e) => return Html(error_page(&format!("Session error: {e}"))).into_response(),
     };
 
     // Persist GitHub token in DB so the background indexer can clone private repos
-    super::users::store_gh_token(&conn, &user.id, &access_token);
+    super::users::store_gh_token(db, &user.id, &access_token).await;
 
     // Store access token in a separate cookie (used client-side for repo listing)
     let mut gh_cookie = Cookie::new("gh_token", access_token);
@@ -173,8 +173,8 @@ pub async fn auth_callback(
 
 pub async fn auth_logout(cookies: Cookies) -> impl IntoResponse {
     if let Some(token) = cookies.get("needle_session").map(|c| c.value().to_string()) {
-        if let Ok(conn) = open_db() {
-            let _ = super::users::delete_session(&conn, &token);
+        if let Ok(db) = pool().await {
+            let _ = super::users::delete_session(db, &token).await;
         }
     }
     let mut c = Cookie::new("needle_session", "");
@@ -211,10 +211,10 @@ pub async fn api_github_repos(cookies: Cookies) -> impl IntoResponse {
 
 // ── Session helper ──────────────────────────────────────────────────────────
 
-pub fn current_user_from_cookies(cookies: &Cookies) -> Option<super::users::User> {
+pub async fn current_user_from_cookies(cookies: &Cookies) -> Option<super::users::User> {
     let token = cookies.get("needle_session")?.value().to_string();
-    let conn = open_db().ok()?;
-    get_session_user(&conn, &token).ok().flatten()
+    let db = pool().await.ok()?;
+    get_session_user(db, &token).await.ok().flatten()
 }
 
 // ── Error page ──────────────────────────────────────────────────────────────

@@ -213,9 +213,22 @@ pub async fn run(port: u16, no_open: bool) -> needle::Result<()> {
     // ── OAuth config (optional — only if env vars are set) ─────────────────
     let has_oauth = oauth::OAuthConfig::from_env().is_some();
 
+    // ── Mode info (passed to frontend at startup) ──────────────────────────
+    let mode_info = serde_json::json!({
+        "is_cloud":     is_cloud,
+        "has_oauth":    has_oauth,
+        "has_index":    has_index,
+        "max_repos":    MAX_REPOS_PER_USER,
+    });
+
     // ── Router ─────────────────────────────────────────────────────────────
     let mut app = Router::new()
         .route("/", get(serve_ui))
+        // Mode discovery — lets the UI adapt to cloud vs local vs desktop
+        .route("/api/mode", get({
+            let info = mode_info.clone();
+            move || async move { Json(info) }
+        }))
         // Search APIs
         .route("/api/search",  get(api_search))
         .route("/api/status",  get(api_status_handler))
@@ -285,22 +298,22 @@ async fn serve_ui() -> Html<&'static str> {
 }
 
 /// Resolve user from either a session cookie or a Bearer API key header.
-fn resolve_user(cookies: &Cookies, headers: &HeaderMap) -> Option<users::User> {
-    if let Some(u) = oauth::current_user_from_cookies(cookies) {
+async fn resolve_user(cookies: &Cookies, headers: &HeaderMap) -> Option<users::User> {
+    if let Some(u) = oauth::current_user_from_cookies(cookies).await {
         return Some(u);
     }
     let auth = headers.get("authorization")?.to_str().ok()?;
     let key  = auth.strip_prefix("Bearer ")?;
-    let conn = users::open_db().ok()?;
-    users::get_user_by_api_key(&conn, key).ok().flatten()
+    let pool = users::pool().await.ok()?;
+    users::get_user_by_api_key(pool, key).await.ok().flatten()
 }
 
 /// Load all `indexed` engines for the given user, caching them in AppState.
 async fn load_cloud_engines(state: &AppState, user: Option<&users::User>) -> Vec<Arc<Mutex<QueryEngine>>> {
     let mut out = vec![];
     let Some(user) = user else { return out };
-    let Ok(conn)  = users::open_db() else { return out };
-    let Ok(repos) = users::list_user_repos(&conn, &user.id) else { return out };
+    let Ok(pool)  = users::pool().await else { return out };
+    let Ok(repos) = users::list_user_repos(pool, &user.id).await else { return out };
 
     for repo in repos.into_iter().filter(|r| r.status == "indexed") {
         let safe_name  = repo.repo_full.replace('/', "_");
@@ -355,7 +368,7 @@ async fn api_search(
     if q.trim().is_empty() { return empty; }
 
     // ── Cloud path ────────────────────────────────────────────────────────
-    let user = resolve_user(&cookies, &headers);
+    let user = resolve_user(&cookies, &headers).await;
     let cloud = load_cloud_engines(&state, user.as_ref()).await;
     if !cloud.is_empty() {
         let mut all_results: Vec<needle::schema::SearchResult> = vec![];
@@ -477,7 +490,7 @@ async fn api_ask(
 
     // Step 1: Retrieve relevant chunks — cloud repos first, local fallback
     let results: Vec<needle::schema::SearchResult> = {
-        let user = resolve_user(&cookies, &headers);
+        let user = resolve_user(&cookies, &headers).await;
         let cloud = load_cloud_engines(&state, user.as_ref()).await;
         if !cloud.is_empty() {
             let mut all: Vec<needle::schema::SearchResult> = vec![];
@@ -568,7 +581,7 @@ async fn api_similar(
     let empty_timing = TimingJson { total_ms: 0.0, bm25_ms: 0.0, hnsw_ms: 0.0, embed_ms: 0.0, fusion_ms: 0.0 };
 
     // ── Cloud path ────────────────────────────────────────────────────────
-    let user = resolve_user(&cookies, &headers);
+    let user = resolve_user(&cookies, &headers).await;
     let cloud = load_cloud_engines(&state, user.as_ref()).await;
     if !cloud.is_empty() {
         let mut all: Vec<needle::schema::SearchResult> = vec![];
@@ -696,7 +709,7 @@ async fn api_auth_logout(cookies: Cookies) -> axum::response::Response {
 
 /// GET /api/me — returns current user or 401
 async fn api_me(cookies: Cookies) -> axum::response::Response {
-    match oauth::current_user_from_cookies(&cookies) {
+    match oauth::current_user_from_cookies(&cookies).await {
         Some(u) => Json(serde_json::json!({
             "id": u.id,
             "username": u.github_username,
@@ -716,13 +729,13 @@ async fn api_validate_key(
         Some(k) => k.to_string(),
         None => return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error":"missing key"}))).into_response(),
     };
-    let conn = match users::open_db() {
-        Ok(c) => c,
+    let pool = match users::pool().await {
+        Ok(p) => p,
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":"db error"}))).into_response(),
     };
-    match users::get_user_by_api_key(&conn, &key) {
+    match users::get_user_by_api_key(pool, &key).await {
         Ok(Some(u)) => {
-            users::touch_last_seen(&conn, &u.id);
+            users::touch_last_seen(pool, &u.id).await;
             Json(serde_json::json!({
                 "valid": true,
                 "username": u.github_username,
@@ -739,13 +752,16 @@ async fn api_github_repos_handler(cookies: Cookies) -> axum::response::Response 
     oauth::api_github_repos(cookies).await.into_response()
 }
 
+// Free-tier repo limit.  Raise this when paid plans exist.
+const MAX_REPOS_PER_USER: i64 = 3;
+
 /// POST /api/repos/connect — save a repo to user's account
 /// Body: {"repo_full": "owner/name", "repo_url": "https://github.com/...", "private": false}
 async fn api_repo_connect(
     cookies: Cookies,
     Json(body): Json<serde_json::Value>,
 ) -> axum::response::Response {
-    let user = match oauth::current_user_from_cookies(&cookies) {
+    let user = match oauth::current_user_from_cookies(&cookies).await {
         Some(u) => u,
         None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"not_authenticated"}))).into_response(),
     };
@@ -756,11 +772,41 @@ async fn api_repo_connect(
     if full.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error":"repo_full required"}))).into_response();
     }
-    let conn = match users::open_db() {
-        Ok(c) => c,
+    let pool = match users::pool().await {
+        Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     };
-    match users::upsert_repo(&conn, &user.id, &name, &full, &url, private) {
+
+    // ── Repo limit ────────────────────────────────────────────────────────────
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_repos WHERE user_id=$1")
+        .bind(&user.id)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0);
+    if count >= MAX_REPOS_PER_USER {
+        return (StatusCode::FORBIDDEN, Json(serde_json::json!({
+            "error": format!("Repo limit reached ({MAX_REPOS_PER_USER} max on free tier). Remove an existing repo first."),
+            "code":  "REPO_LIMIT"
+        }))).into_response();
+    }
+
+    // ── GitHub token check ────────────────────────────────────────────────────
+    // The background indexer clones repos using the stored gh_token.
+    // If it is missing (e.g. the server restarted after OAuth), the repo
+    // will sit in "pending" forever — tell the user to re-authenticate now.
+    let has_token: bool = sqlx::query_scalar("SELECT COALESCE(gh_token, '') != '' FROM users WHERE id=$1")
+        .bind(&user.id)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(false);
+    if !has_token {
+        return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({
+            "error": "GitHub access token missing — please sign out and sign in again before adding a repo.",
+            "code":  "TOKEN_MISSING"
+        }))).into_response();
+    }
+
+    match users::upsert_repo(pool, &user.id, &name, &full, &url, private).await {
         Ok(repo_id) => Json(serde_json::json!({"ok":true,"repo_id":repo_id,"status":"pending"})).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     }
@@ -768,15 +814,15 @@ async fn api_repo_connect(
 
 /// GET /api/repos — list authenticated user's repos with current status (for polling)
 async fn api_repos(cookies: Cookies, headers: HeaderMap) -> axum::response::Response {
-    let user = match resolve_user(&cookies, &headers) {
+    let user = match resolve_user(&cookies, &headers).await {
         Some(u) => u,
         None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"not_authenticated"}))).into_response(),
     };
-    let conn = match users::open_db() {
-        Ok(c) => c,
+    let pool = match users::pool().await {
+        Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     };
-    match users::list_user_repos(&conn, &user.id) {
+    match users::list_user_repos(pool, &user.id).await {
         Ok(repos) => Json(serde_json::json!({"repos": repos})).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     }
@@ -784,15 +830,15 @@ async fn api_repos(cookies: Cookies, headers: HeaderMap) -> axum::response::Resp
 
 /// POST /api/me/revoke-key — disable API key without issuing a new one
 async fn api_revoke_key(cookies: Cookies) -> axum::response::Response {
-    let user = match oauth::current_user_from_cookies(&cookies) {
+    let user = match oauth::current_user_from_cookies(&cookies).await {
         Some(u) => u,
         None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"not_authenticated"}))).into_response(),
     };
-    let conn = match users::open_db() {
-        Ok(c) => c,
+    let pool = match users::pool().await {
+        Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     };
-    match conn.execute("UPDATE users SET is_active=0 WHERE id=?1", rusqlite::params![user.id]) {
+    match sqlx::query("UPDATE users SET is_active=false WHERE id=$1").bind(&user.id).execute(pool).await {
         Ok(_) => Json(serde_json::json!({"ok":true})).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     }
@@ -800,16 +846,16 @@ async fn api_revoke_key(cookies: Cookies) -> axum::response::Response {
 
 /// POST /api/me/regenerate-key — issue a new API key, invalidate the old one
 async fn api_regenerate_key(cookies: Cookies) -> axum::response::Response {
-    let user = match oauth::current_user_from_cookies(&cookies) {
+    let user = match oauth::current_user_from_cookies(&cookies).await {
         Some(u) => u,
         None => return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"not_authenticated"}))).into_response(),
     };
-    let conn = match users::open_db() {
-        Ok(c) => c,
+    let pool = match users::pool().await {
+        Ok(p) => p,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     };
     let new_key = users::generate_api_key();
-    match conn.execute("UPDATE users SET api_key=?1, is_active=1 WHERE id=?2", rusqlite::params![new_key, user.id]) {
+    match sqlx::query("UPDATE users SET api_key=$1, is_active=true WHERE id=$2").bind(&new_key).bind(&user.id).execute(pool).await {
         Ok(_) => Json(serde_json::json!({"ok":true,"api_key":new_key})).into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":e.to_string()}))).into_response(),
     }

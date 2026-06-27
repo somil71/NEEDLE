@@ -3030,11 +3030,15 @@ needle-macos-x64     # Intel</code></pre>
 
       <!-- Local index info (shown when running locally with an index) -->
       <div id="dash-local-section" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:24px">
-        <div style="font-weight:600;margin-bottom:16px">Local Index</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-weight:600">Local Index</div>
+          <button id="btn-pick-folder" onclick="pickAndIndexFolder()" style="display:none;padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem">+ Index a folder</button>
+        </div>
         <div id="dash-local-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px"></div>
-        <div style="margin-top:16px;background:var(--bg);border-radius:8px;padding:14px;font-size:.85rem;color:var(--text-muted)">
+        <div id="dash-local-hint" style="margin-top:16px;background:var(--bg);border-radius:8px;padding:14px;font-size:.85rem;color:var(--text-muted)">
           Run <code style="background:#27272a;padding:2px 6px;border-radius:4px;color:#e4e4e7">needle init ./your-project</code> in your terminal to index a codebase. Your code never leaves this machine.
         </div>
+        <div id="dash-folder-status" style="display:none;margin-top:12px;font-size:.85rem;color:var(--text-muted)"></div>
       </div>
 
       <!-- Cloud repos (shown when deployed on Railway) -->
@@ -3253,6 +3257,12 @@ async function revokeKey() {
   } catch(e) {}
 }
 
+// True when running inside the Tauri desktop app (window.__TAURI__ is injected by Tauri).
+const IS_TAURI = typeof window.__TAURI__ !== 'undefined';
+
+// Expose folder-picker hook so the tray menu can trigger it.
+window.__needleOpenFolderPicker = () => pickAndIndexFolder();
+
 async function loadDashboard() {
   // Reset state each visit so stale data never shows
   document.getElementById('dash-loading').style.display = 'block';
@@ -3262,29 +3272,64 @@ async function loadDashboard() {
   document.getElementById('dash-cloud-section').style.display = 'none';
 
   try {
-    const [meRes, statusRes] = await Promise.all([fetch('/api/me'), fetch('/api/status')]);
-    if (!meRes.ok) {
+    const [modeRes, meRes, statusRes] = await Promise.all([
+      fetch('/api/mode'),
+      fetch('/api/me'),
+      fetch('/api/status'),
+    ]);
+    const mode   = modeRes.ok   ? await modeRes.json()   : {};
+    const status = statusRes.ok ? await statusRes.json() : {};
+
+    // In local/desktop mode (no OAuth) we skip the auth wall entirely.
+    const localMode = !mode.is_cloud || !mode.has_oauth;
+
+    if (!meRes.ok && !localMode) {
       document.getElementById('dash-loading').style.display = 'none';
       document.getElementById('dash-auth').style.display = 'block';
       return;
     }
-    const user = await meRes.json();
-    const status = statusRes.ok ? await statusRes.json() : {};
-
-    _rawApiKey = user.api_key || '';
-    _keyVisible = false;
 
     document.getElementById('dash-loading').style.display = 'none';
     document.getElementById('dash-content').style.display = 'block';
-    document.getElementById('dash-avatar').src = user.avatar || '';
-    document.getElementById('dash-username').textContent = '@' + (user.username || '');
-    setKeyDisplay(!_rawApiKey);
 
-    if (status.is_cloud) {
+    if (meRes.ok) {
+      const user = await meRes.json();
+      _rawApiKey = user.api_key || '';
+      _keyVisible = false;
+      document.getElementById('dash-avatar').src = user.avatar || '';
+      document.getElementById('dash-username').textContent = '@' + (user.username || '');
+      setKeyDisplay(!_rawApiKey);
+    } else {
+      // Local mode — no user account, hide the API key section
+      document.getElementById('dash-avatar').src = '';
+      document.getElementById('dash-username').textContent = 'Local mode';
+      const keySection = document.getElementById('dash-key-section');
+      if (keySection) keySection.style.display = 'none';
+    }
+
+    if (mode.is_cloud && mode.has_oauth) {
       document.getElementById('dash-cloud-section').style.display = 'block';
+      // Show remaining repo slots
+      const addBtn = document.querySelector('[onclick="openRepoModal()"]');
+      if (addBtn && mode.max_repos) {
+        const countRes = await fetch('/api/repos');
+        const countData = countRes.ok ? await countRes.json() : {};
+        const used = (countData.repos || []).length;
+        const remaining = mode.max_repos - used;
+        addBtn.textContent = remaining > 0
+          ? `+ Add repo (${remaining} slot${remaining !== 1 ? 's' : ''} left)`
+          : 'Limit reached';
+        if (remaining <= 0) addBtn.disabled = true;
+      }
       loadConnectedRepos();
     } else {
       document.getElementById('dash-local-section').style.display = 'block';
+      // Show the folder-picker button in Tauri desktop app
+      if (IS_TAURI) {
+        document.getElementById('btn-pick-folder').style.display = 'inline-flex';
+        document.getElementById('dash-local-hint').textContent =
+          'Click "+ Index a folder" to choose a local codebase to index. Your code never leaves this machine.';
+      }
       if (status.has_index) {
         const fmt = n => n >= 1024*1024 ? (n/1024/1024).toFixed(1)+'MB' : n >= 1024 ? (n/1024).toFixed(0)+'KB' : n+'B';
         document.getElementById('dash-local-stats').innerHTML = [
@@ -3300,6 +3345,23 @@ async function loadDashboard() {
     }
   } catch(e) {
     document.getElementById('dash-loading').textContent = 'Error loading dashboard.';
+  }
+}
+
+async function pickAndIndexFolder() {
+  if (!IS_TAURI) return;
+  const { invoke } = window.__TAURI__.core;
+  const dir = await invoke('cmd_open_folder');
+  if (!dir) return;
+  const statusEl = document.getElementById('dash-folder-status');
+  statusEl.style.display = 'block';
+  statusEl.textContent = `Indexing ${dir}…`;
+  try {
+    await invoke('cmd_index_folder', { dir });
+    statusEl.textContent = `Started indexing ${dir}. Refresh in a moment to see updated stats.`;
+    setTimeout(() => loadDashboard(), 4000);
+  } catch(e) {
+    statusEl.textContent = `Error: ${e}`;
   }
 }
 

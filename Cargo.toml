@@ -63,8 +63,8 @@ tower-http = { version = "0.5", features = ["cors"] }
 # Open browser / files
 open = "5"
 
-# Auth / users DB
-rusqlite = { version = "0.31", features = ["bundled"] }
+# Auth / users DB (Postgres — Neon)
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros"] }
 uuid = { version = "1", features = ["v4"] }
 
 # Cookie support for sessions

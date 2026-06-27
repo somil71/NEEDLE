@@ -12,6 +12,12 @@ static SERVER: Mutex<Option<Child>> = Mutex::new(None);
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            cmd_open_folder,
+            cmd_index_folder,
+            cmd_get_indexed_dirs,
+        ])
         .setup(|app| {
             // Start the needle server in the background
             let needle_bin = resolve_needle_binary(app.handle());
@@ -22,15 +28,17 @@ pub fn run() {
             *SERVER.lock().unwrap() = Some(child);
 
             // Build system-tray menu
-            let open_item = MenuItem::with_id(app, "open", "Open Needle", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
+            let open_item   = MenuItem::with_id(app, "open",   "Open Needle",   true, None::<&str>)?;
+            let folder_item = MenuItem::with_id(app, "folder", "Index a folder…", true, None::<&str>)?;
+            let quit_item   = MenuItem::with_id(app, "quit",   "Quit",           true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&open_item, &folder_item, &quit_item])?;
 
             TrayIconBuilder::new()
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "open" => show_or_create_window(app),
-                    "quit" => {
+                    "open"   => show_or_create_window(app),
+                    "folder" => trigger_folder_pick(app),
+                    "quit"   => {
                         kill_server();
                         app.exit(0);
                     }
@@ -61,6 +69,66 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("Error running Needle desktop app");
+}
+
+// ---------------------------------------------------------------------------
+// Tauri commands (callable from the frontend via invoke())
+// ---------------------------------------------------------------------------
+
+/// Opens a native folder-picker dialog and returns the selected path.
+#[tauri::command]
+async fn cmd_open_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog().file().pick_folder(move |path| {
+        let _ = tx.send(path);
+    });
+    let path = rx.await.map_err(|e| e.to_string())?;
+    Ok(path.map(|p| p.to_string()))
+}
+
+/// Runs `needle init <dir>` in the background, then reloads the web UI.
+/// Returns immediately; indexing is async (progress visible in the UI).
+#[tauri::command]
+async fn cmd_index_folder(app: tauri::AppHandle, dir: String) -> Result<(), String> {
+    let needle_bin = resolve_needle_binary(&app);
+    std::process::Command::new(&needle_bin)
+        .args(["init", &dir])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Returns the list of directories currently in the local index (via the
+/// running server's /api/status endpoint).
+#[tauri::command]
+async fn cmd_get_indexed_dirs() -> Result<Vec<String>, String> {
+    let resp = reqwest::get("http://127.0.0.1:7700/api/status")
+        .await
+        .map_err(|e| e.to_string())?
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| e.to_string())?;
+    let dirs = resp["watched_dirs"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect();
+    Ok(dirs)
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/// Emit a request to the frontend to open the folder picker.
+/// Used from the tray menu "Index a folder…" item.
+fn trigger_folder_pick(app: &tauri::AppHandle) {
+    show_or_create_window(app);
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.eval("window.__needleOpenFolderPicker && window.__needleOpenFolderPicker()");
+    }
 }
 
 fn wait_for_server() {

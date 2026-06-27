@@ -1,74 +1,131 @@
-use rusqlite::{Connection, Result, params};
 use serde::Serialize;
-use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use sqlx::{postgres::PgPoolOptions, FromRow, PgPool};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::sync::OnceCell;
 use uuid::Uuid;
 
-fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+fn now() -> i64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64
 }
 
-pub fn db_path() -> PathBuf {
-    // On Railway: /data/needle-users.db  (persistent volume)
-    // Locally:    ~/.needle/users.db
-    if let Ok(p) = std::env::var("DATA_DIR") {
-        return PathBuf::from(p).join("needle-users.db");
-    }
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".needle")
-        .join("users.db")
+static POOL: OnceCell<PgPool> = OnceCell::const_new();
+
+/// Returns the shared Postgres pool, connecting lazily on first use.
+/// Cloud features (OAuth, sessions, repo tracking) require `DATABASE_URL`;
+/// pure local/desktop usage never calls this.
+///
+/// Tries `DATABASE_URL` (Neon) first; if that's unreachable — e.g. paused
+/// after hitting a free-tier compute-hour quota — falls back to
+/// `DATABASE_URL_FALLBACK` (e.g. Supabase). Both are plain Postgres, so the
+/// same schema/queries work against either. Once a backend connects
+/// successfully it's used for the rest of the process; restart to retry
+/// the primary.
+pub async fn pool() -> anyhow::Result<&'static PgPool> {
+    POOL.get_or_try_init(|| async {
+        let primary  = std::env::var("DATABASE_URL").ok();
+        let fallback = std::env::var("DATABASE_URL_FALLBACK").ok();
+
+        if primary.is_none() && fallback.is_none() {
+            anyhow::bail!("DATABASE_URL not set — cloud features disabled");
+        }
+
+        for (label, url) in [("DATABASE_URL", primary), ("DATABASE_URL_FALLBACK", fallback)] {
+            let Some(url) = url else { continue };
+            match connect(&url).await {
+                Ok(pool) => {
+                    if label == "DATABASE_URL_FALLBACK" {
+                        eprintln!("[db] DATABASE_URL unreachable — using DATABASE_URL_FALLBACK");
+                    }
+                    return Ok(pool);
+                }
+                Err(e) => eprintln!("[db] {label} connection failed: {e}"),
+            }
+        }
+
+        anyhow::bail!("could not connect to any configured database")
+    })
+    .await
 }
 
-pub fn open_db() -> Result<Connection> {
-    let path = db_path();
-    if let Some(parent) = path.parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let conn = Connection::open(&path)?;
-    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
-    migrate(&conn)?;
-    Ok(conn)
+async fn connect(url: &str) -> anyhow::Result<PgPool> {
+    // min_connections(0) + a short idle_timeout let the pool fully release
+    // its connection between background-indexer polls, so a Neon/Supabase
+    // free-tier compute can actually autosuspend instead of staying "active"
+    // (and burning compute-hour quota) the whole time.
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .min_connections(0)
+        .idle_timeout(Some(Duration::from_secs(10)))
+        .acquire_timeout(Duration::from_secs(8))
+        .connect(url)
+        .await?;
+    migrate(&pool).await?;
+    Ok(pool)
 }
 
-fn migrate(conn: &Connection) -> Result<()> {
-    conn.execute_batch(r#"
+async fn migrate(pool: &PgPool) -> sqlx::Result<()> {
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS users (
             id               TEXT PRIMARY KEY,
-            github_id        INTEGER UNIQUE,
+            github_id        BIGINT UNIQUE,
             github_username  TEXT NOT NULL,
             github_avatar    TEXT,
             email            TEXT,
             api_key          TEXT UNIQUE NOT NULL,
             gh_token         TEXT,
-            created_at       INTEGER NOT NULL,
-            last_seen        INTEGER NOT NULL,
-            is_active        INTEGER NOT NULL DEFAULT 1
-        );
+            created_at       BIGINT NOT NULL,
+            last_seen        BIGINT NOT NULL,
+            is_active        BOOLEAN NOT NULL DEFAULT TRUE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
 
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS sessions (
             token       TEXT PRIMARY KEY,
             user_id     TEXT NOT NULL REFERENCES users(id),
-            created_at  INTEGER NOT NULL,
-            expires_at  INTEGER NOT NULL
-        );
+            created_at  BIGINT NOT NULL,
+            expires_at  BIGINT NOT NULL
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
 
+    sqlx::query(
+        r#"
         CREATE TABLE IF NOT EXISTS user_repos (
             id            TEXT PRIMARY KEY,
             user_id       TEXT NOT NULL REFERENCES users(id),
             repo_name     TEXT NOT NULL,
             repo_full     TEXT NOT NULL,
             repo_url      TEXT NOT NULL,
-            private       INTEGER NOT NULL DEFAULT 0,
+            private       BOOLEAN NOT NULL DEFAULT FALSE,
             status        TEXT NOT NULL DEFAULT 'pending',
-            indexed_at    INTEGER,
+            indexed_at    BIGINT,
+            seq           BIGSERIAL,
             UNIQUE(user_id, repo_full)
-        );
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
 
-        CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-        CREATE INDEX IF NOT EXISTS idx_repos_user    ON user_repos(user_id);
-        CREATE INDEX IF NOT EXISTS idx_api_key       ON users(api_key);
-    "#)
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_repos_user ON user_repos(user_id)")
+        .execute(pool)
+        .await?;
+    sqlx::query("CREATE INDEX IF NOT EXISTS idx_api_key ON users(api_key)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
 }
 
 // ── Key generation ──────────────────────────────────────────────────────────
@@ -96,102 +153,143 @@ pub struct User {
     pub last_seen: u64,
 }
 
-pub fn upsert_user(conn: &Connection, github_id: i64, username: &str, avatar: &str, email: Option<&str>) -> Result<User> {
-    let existing: Option<String> = conn
-        .query_row(
-            "SELECT id FROM users WHERE github_id = ?1",
-            params![github_id],
-            |r| r.get(0),
-        )
-        .ok();
+#[derive(FromRow)]
+struct UserRow {
+    id: String,
+    github_id: i64,
+    github_username: String,
+    github_avatar: Option<String>,
+    email: Option<String>,
+    api_key: String,
+    created_at: i64,
+    last_seen: i64,
+}
+
+impl From<UserRow> for User {
+    fn from(r: UserRow) -> Self {
+        User {
+            id: r.id,
+            github_id: r.github_id,
+            github_username: r.github_username,
+            github_avatar: r.github_avatar.unwrap_or_default(),
+            email: r.email,
+            api_key: r.api_key,
+            created_at: r.created_at as u64,
+            last_seen: r.last_seen as u64,
+        }
+    }
+}
+
+pub async fn upsert_user(
+    pool: &PgPool,
+    github_id: i64,
+    username: &str,
+    avatar: &str,
+    email: Option<&str>,
+) -> sqlx::Result<User> {
+    let existing: Option<String> = sqlx::query_scalar("SELECT id FROM users WHERE github_id = $1")
+        .bind(github_id)
+        .fetch_optional(pool)
+        .await?;
 
     let ts = now();
 
     if let Some(id) = existing {
-        conn.execute(
-            "UPDATE users SET github_username=?1, github_avatar=?2, email=?3, last_seen=?4 WHERE id=?5",
-            params![username, avatar, email, ts as i64, id],
-        )?;
-        get_user_by_id(conn, &id)
+        sqlx::query(
+            "UPDATE users SET github_username=$1, github_avatar=$2, email=$3, last_seen=$4 WHERE id=$5",
+        )
+        .bind(username)
+        .bind(avatar)
+        .bind(email)
+        .bind(ts)
+        .bind(&id)
+        .execute(pool)
+        .await?;
+        get_user_by_id(pool, &id).await
     } else {
         let id = format!("usr_{}", &Uuid::new_v4().as_simple().to_string()[..12]);
         let api_key = generate_api_key();
-        conn.execute(
+        sqlx::query(
             "INSERT INTO users (id,github_id,github_username,github_avatar,email,api_key,created_at,last_seen)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
-            params![id, github_id, username, avatar, email, api_key, ts as i64, ts as i64],
-        )?;
-        get_user_by_id(conn, &id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+        )
+        .bind(&id)
+        .bind(github_id)
+        .bind(username)
+        .bind(avatar)
+        .bind(email)
+        .bind(&api_key)
+        .bind(ts)
+        .bind(ts)
+        .execute(pool)
+        .await?;
+        get_user_by_id(pool, &id).await
     }
 }
 
-pub fn get_user_by_id(conn: &Connection, id: &str) -> Result<User> {
-    conn.query_row(
-        "SELECT id,github_id,github_username,github_avatar,email,api_key,created_at,last_seen FROM users WHERE id=?1",
-        params![id],
-        row_to_user,
+pub async fn get_user_by_id(pool: &PgPool, id: &str) -> sqlx::Result<User> {
+    let row: UserRow = sqlx::query_as(
+        "SELECT id,github_id,github_username,github_avatar,email,api_key,created_at,last_seen FROM users WHERE id=$1",
     )
+    .bind(id)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.into())
 }
 
-pub fn get_user_by_api_key(conn: &Connection, key: &str) -> Result<Option<User>> {
-    conn.query_row(
-        "SELECT id,github_id,github_username,github_avatar,email,api_key,created_at,last_seen FROM users WHERE api_key=?1 AND is_active=1",
-        params![key],
-        row_to_user,
-    ).map(Some).or_else(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => Ok(None),
-        e => Err(e),
-    })
-}
-
-fn row_to_user(r: &rusqlite::Row<'_>) -> rusqlite::Result<User> {
-    Ok(User {
-        id:              r.get(0)?,
-        github_id:       r.get(1)?,
-        github_username: r.get(2)?,
-        github_avatar:   r.get::<_, Option<String>>(3)?.unwrap_or_default(),
-        email:           r.get(4)?,
-        api_key:         r.get(5)?,
-        created_at:      r.get::<_, i64>(6)? as u64,
-        last_seen:       r.get::<_, i64>(7)? as u64,
-    })
+pub async fn get_user_by_api_key(pool: &PgPool, key: &str) -> sqlx::Result<Option<User>> {
+    let row: Option<UserRow> = sqlx::query_as(
+        "SELECT id,github_id,github_username,github_avatar,email,api_key,created_at,last_seen FROM users WHERE api_key=$1 AND is_active=true",
+    )
+    .bind(key)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(Into::into))
 }
 
 // ── Sessions ────────────────────────────────────────────────────────────────
 
-pub fn create_session(conn: &Connection, user_id: &str) -> Result<String> {
+pub async fn create_session(pool: &PgPool, user_id: &str) -> sqlx::Result<String> {
     let token = generate_session_token();
-    let ts = now() as i64;
+    let ts = now();
     let expires = ts + 30 * 24 * 3600; // 30 days
-    conn.execute(
-        "INSERT INTO sessions (token,user_id,created_at,expires_at) VALUES (?1,?2,?3,?4)",
-        params![token, user_id, ts, expires],
-    )?;
+    sqlx::query("INSERT INTO sessions (token,user_id,created_at,expires_at) VALUES ($1,$2,$3,$4)")
+        .bind(&token)
+        .bind(user_id)
+        .bind(ts)
+        .bind(expires)
+        .execute(pool)
+        .await?;
     Ok(token)
 }
 
-pub fn get_session_user(conn: &Connection, token: &str) -> Result<Option<User>> {
-    let ts = now() as i64;
-    let user_id: Option<String> = conn.query_row(
-        "SELECT user_id FROM sessions WHERE token=?1 AND expires_at>?2",
-        params![token, ts],
-        |r| r.get(0),
-    ).ok();
+pub async fn get_session_user(pool: &PgPool, token: &str) -> sqlx::Result<Option<User>> {
+    let ts = now();
+    let user_id: Option<String> = sqlx::query_scalar(
+        "SELECT user_id FROM sessions WHERE token=$1 AND expires_at>$2",
+    )
+    .bind(token)
+    .bind(ts)
+    .fetch_optional(pool)
+    .await?;
 
     match user_id {
         None => Ok(None),
-        Some(uid) => get_user_by_id(conn, &uid).map(Some),
+        Some(uid) => get_user_by_id(pool, &uid).await.map(Some),
     }
 }
 
-pub fn delete_session(conn: &Connection, token: &str) -> Result<()> {
-    conn.execute("DELETE FROM sessions WHERE token=?1", params![token])?;
+pub async fn delete_session(pool: &PgPool, token: &str) -> sqlx::Result<()> {
+    sqlx::query("DELETE FROM sessions WHERE token=$1")
+        .bind(token)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
 // ── Repos ───────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Clone, FromRow)]
 pub struct UserRepo {
     pub id: String,
     pub user_id: String,
@@ -200,67 +298,87 @@ pub struct UserRepo {
     pub repo_url: String,
     pub private: bool,
     pub status: String,
-    pub indexed_at: Option<u64>,
+    pub indexed_at: Option<i64>,
 }
 
-pub fn list_user_repos(conn: &Connection, user_id: &str) -> Result<Vec<UserRepo>> {
-    let mut stmt = conn.prepare(
-        "SELECT id,user_id,repo_name,repo_full,repo_url,private,status,indexed_at FROM user_repos WHERE user_id=?1 ORDER BY rowid DESC"
-    )?;
-    let rows = stmt.query_map(params![user_id], |r| Ok(UserRepo {
-        id:         r.get(0)?,
-        user_id:    r.get(1)?,
-        repo_name:  r.get(2)?,
-        repo_full:  r.get(3)?,
-        repo_url:   r.get(4)?,
-        private:    r.get::<_, i64>(5)? != 0,
-        status:     r.get(6)?,
-        indexed_at: r.get::<_, Option<i64>>(7)?.map(|v| v as u64),
-    }))?;
-    rows.collect()
+pub async fn list_user_repos(pool: &PgPool, user_id: &str) -> sqlx::Result<Vec<UserRepo>> {
+    sqlx::query_as(
+        "SELECT id,user_id,repo_name,repo_full,repo_url,private,status,indexed_at
+         FROM user_repos WHERE user_id=$1 ORDER BY seq DESC",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await
 }
 
-pub fn upsert_repo(conn: &Connection, user_id: &str, name: &str, full: &str, url: &str, private: bool) -> Result<String> {
-    let existing: Option<String> = conn.query_row(
-        "SELECT id FROM user_repos WHERE user_id=?1 AND repo_full=?2",
-        params![user_id, full],
-        |r| r.get(0),
-    ).ok();
+pub async fn upsert_repo(
+    pool: &PgPool,
+    user_id: &str,
+    name: &str,
+    full: &str,
+    url: &str,
+    private: bool,
+) -> sqlx::Result<String> {
+    let existing: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM user_repos WHERE user_id=$1 AND repo_full=$2",
+    )
+    .bind(user_id)
+    .bind(full)
+    .fetch_optional(pool)
+    .await?;
 
     if let Some(id) = existing {
         return Ok(id);
     }
 
     let id = format!("repo_{}", &Uuid::new_v4().as_simple().to_string()[..12]);
-    conn.execute(
+    sqlx::query(
         "INSERT INTO user_repos (id,user_id,repo_name,repo_full,repo_url,private,status)
-         VALUES (?1,?2,?3,?4,?5,?6,'pending')",
-        params![id, user_id, name, full, url, private as i64],
-    )?;
+         VALUES ($1,$2,$3,$4,$5,$6,'pending')",
+    )
+    .bind(&id)
+    .bind(user_id)
+    .bind(name)
+    .bind(full)
+    .bind(url)
+    .bind(private)
+    .execute(pool)
+    .await?;
     Ok(id)
 }
 
-pub fn store_gh_token(conn: &Connection, user_id: &str, token: &str) {
-    let _ = conn.execute("UPDATE users SET gh_token=?1 WHERE id=?2", params![token, user_id]);
+pub async fn store_gh_token(pool: &PgPool, user_id: &str, token: &str) {
+    let _ = sqlx::query("UPDATE users SET gh_token=$1 WHERE id=$2")
+        .bind(token)
+        .bind(user_id)
+        .execute(pool)
+        .await;
 }
 
-pub fn touch_last_seen(conn: &Connection, user_id: &str) {
-    let ts = now() as i64;
-    let _ = conn.execute("UPDATE users SET last_seen=?1 WHERE id=?2", params![ts, user_id]);
+pub async fn touch_last_seen(pool: &PgPool, user_id: &str) {
+    let ts = now();
+    let _ = sqlx::query("UPDATE users SET last_seen=$1 WHERE id=$2")
+        .bind(ts)
+        .bind(user_id)
+        .execute(pool)
+        .await;
 }
 
-pub fn set_repo_status(conn: &Connection, repo_id: &str, status: &str) -> Result<()> {
-    let ts = now() as i64;
+pub async fn set_repo_status(pool: &PgPool, repo_id: &str, status: &str) -> sqlx::Result<()> {
+    let ts = now();
     if status == "indexed" {
-        conn.execute(
-            "UPDATE user_repos SET status=?1, indexed_at=?2 WHERE id=?3",
-            params![status, ts, repo_id],
-        )?;
+        sqlx::query("UPDATE user_repos SET status=$1, indexed_at=$2 WHERE id=$3")
+            .bind(status)
+            .bind(ts)
+            .bind(repo_id)
+            .execute(pool)
+            .await?;
     } else {
-        conn.execute(
-            "UPDATE user_repos SET status=?1 WHERE id=?2",
-            params![status, repo_id],
-        )?;
+        sqlx::query("UPDATE user_repos SET status=$1 WHERE id=$2")
+            .bind(status)
+            .bind(repo_id)
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }

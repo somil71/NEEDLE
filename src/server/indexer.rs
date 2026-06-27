@@ -4,35 +4,59 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 
-use super::users::{open_db, set_repo_status};
+use super::users::{pool, set_repo_status};
 
 pub struct IndexerConfig {
     pub data_dir: PathBuf,
 }
 
 /// Spawns a background loop that picks up pending repos and indexes them.
+///
+/// Polls every 6 minutes rather than every few seconds — Neon/Supabase
+/// free-tier compute autosuspends after ~5 minutes with zero active
+/// connections, so a tighter loop would keep it "active" (and burning
+/// compute-hour quota) around the clock. A connected repo may sit a few
+/// minutes longer in "pending" as a result; `api_repo_connect` could also
+/// trigger an immediate tick in the future if that latency matters.
 pub async fn run(cfg: Arc<IndexerConfig>) {
     loop {
         if let Err(e) = tick(&cfg).await {
             eprintln!("[indexer] error: {e}");
         }
-        sleep(Duration::from_secs(30)).await;
+        sleep(Duration::from_secs(360)).await;
     }
 }
 
 async fn tick(cfg: &IndexerConfig) -> anyhow::Result<()> {
-    let conn = open_db()?;
+    // No DATABASE_URL configured (pure local/desktop usage) — nothing to do.
+    let db = match pool().await {
+        Ok(p) => p,
+        Err(_) => return Ok(()),
+    };
+
+    // Mark any pending repos whose owner has no gh_token so they don't
+    // sit silently in "queued" forever — the user needs to re-authenticate.
+    sqlx::query(
+        "UPDATE user_repos SET status = 'error: GitHub token missing — sign out and sign in again'
+         WHERE status = 'pending'
+           AND user_id IN (SELECT id FROM users WHERE COALESCE(gh_token,'') = '')",
+    )
+    .execute(db)
+    .await
+    .ok();
 
     // Pick one pending repo that has a stored gh_token
-    let row: Option<(String, String, String, String)> = conn.query_row(
+    let row: Option<(String, String, String, String)> = sqlx::query_as(
         "SELECT ur.id, ur.user_id, ur.repo_full, u.gh_token
          FROM user_repos ur
          JOIN users u ON ur.user_id = u.id
-         WHERE ur.status = 'pending' AND u.gh_token IS NOT NULL
+         WHERE ur.status = 'pending' AND COALESCE(u.gh_token,'') != ''
          LIMIT 1",
-        [],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-    ).ok();
+    )
+    .fetch_optional(db)
+    .await
+    .ok()
+    .flatten();
 
     let (repo_id, user_id, repo_full, gh_token) = match row {
         Some(r) => r,
@@ -48,7 +72,7 @@ async fn tick(cfg: &IndexerConfig) -> anyhow::Result<()> {
     let idx_dir   = base.join("index");
 
     // ── Clone ────────────────────────────────────────────────────────────────
-    set_repo_status(&conn, &repo_id, "cloning")?;
+    set_repo_status(db, &repo_id, "cloning").await?;
 
     if src_dir.exists() { std::fs::remove_dir_all(&src_dir)?; }
     std::fs::create_dir_all(&src_dir)?;
@@ -64,12 +88,12 @@ async fn tick(cfg: &IndexerConfig) -> anyhow::Result<()> {
     if !clone_out.status.success() {
         let msg = format!("clone failed: {}", String::from_utf8_lossy(&clone_out.stderr));
         eprintln!("[indexer] {msg}");
-        set_repo_status(&conn, &repo_id, &format!("error: {msg}"))?;
+        set_repo_status(db, &repo_id, &format!("error: {msg}")).await?;
         return Ok(());
     }
 
     // ── Index ────────────────────────────────────────────────────────────────
-    set_repo_status(&conn, &repo_id, "indexing")?;
+    set_repo_status(db, &repo_id, "indexing").await?;
 
     std::fs::create_dir_all(&idx_dir)?;
 
@@ -83,12 +107,18 @@ async fn tick(cfg: &IndexerConfig) -> anyhow::Result<()> {
         Ok(stats) => {
             eprintln!("[indexer] ✓ {repo_full} — {} chunks, {} files",
                 stats.total_chunks, stats.total_files);
-            set_repo_status(&conn, &repo_id, "indexed")?;
+            set_repo_status(db, &repo_id, "indexed").await?;
         }
         Err(msg) => {
-            eprintln!("[indexer] index failed: {msg}");
-            let short = &msg[..msg.len().min(180)];
-            set_repo_status(&conn, &repo_id, &format!("error: {short}"))?;
+            eprintln!("[indexer] index failed for {repo_full}: {msg}");
+            // Give empty repos a friendlier label than a generic error.
+            let status = if msg.contains("No supported files") {
+                "empty: no indexable source files found".to_string()
+            } else {
+                let short = &msg[..msg.len().min(200)];
+                format!("error: {short}")
+            };
+            set_repo_status(db, &repo_id, &status).await?;
         }
     }
 
