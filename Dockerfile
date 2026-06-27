@@ -8,16 +8,20 @@ RUN apt-get update && apt-get install -y \
     pkg-config libssl-dev build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Cache dependencies — copy manifests first, dummy src to trigger dep compile
+# Cache dependencies — copy manifests first, dummy src to trigger dep compile.
+# src-tauri is a workspace member (desktop app); its manifest must be present
+# for Cargo to resolve the workspace, but we never build it here — the server
+# image doesn't need a webview/GUI toolchain (gtk3, webkit2gtk, etc.).
 COPY Cargo.toml Cargo.lock ./
+COPY src-tauri ./src-tauri
 RUN mkdir src && echo "fn main(){}" > src/main.rs && \
-    cargo build --release 2>/dev/null || true && \
+    cargo build --release -p needle 2>/dev/null || true && \
     rm -rf src
 
-# Copy real source and compile
+# Copy real source and compile (server binary only)
 COPY src ./src
 COPY benches ./benches
-RUN cargo build --release
+RUN cargo build --release -p needle
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM debian:bookworm-slim
