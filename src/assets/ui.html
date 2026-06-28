@@ -3165,9 +3165,17 @@ async function checkNavAuth() {
   const authEl = document.getElementById('nav-auth');
   if (authEl) authEl.style.display = 'flex';
   try {
-    const res = await fetch('/api/me');
-    if (res.ok) {
-      const user = await res.json();
+    const [meRes, modeRes] = await Promise.all([fetch('/api/me'), fetch('/api/mode')]);
+    const mode = modeRes.ok ? await modeRes.json() : {};
+    // No OAuth configured (local/desktop mode) — there is nothing to sign
+    // into, so don't show a button that would just hit "OAuth not configured".
+    if (!mode.has_oauth) {
+      document.getElementById('nav-signin').style.display = 'none';
+      document.getElementById('nav-user').style.display = 'none';
+      return;
+    }
+    if (meRes.ok) {
+      const user = await meRes.json();
       document.getElementById('nav-signin').style.display = 'none';
       document.getElementById('nav-user').style.display = 'block';
       const av = document.getElementById('nav-avatar');
