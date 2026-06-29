@@ -101,31 +101,46 @@ struct ApiSearchResult {
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
+/// Loads the local index from disk, or `None` if no index has been built yet.
+fn load_local() -> needle::Result<Option<(QueryEngine, CodeGraph)>> {
+    if !Storage::index_exists() {
+        return Ok(None);
+    }
+    let storage  = Storage::new(Storage::default_index_dir())?;
+    let config   = Storage::load_config().unwrap_or_default();
+    let bm25     = storage.load_bm25()?;
+    let hnsw     = storage.load_hnsw()?;
+    let chunks   = storage.load_chunks()?;
+    let graph    = storage.load_graph().unwrap_or_default();
+    let embedding = EmbeddingModel::new(config.embedding_dim)?;
+    Ok(Some((QueryEngine::new(bm25, hnsw, chunks, embedding), graph)))
+}
+
+/// `meta.json` is rewritten on every `needle init`, so its mtime doubles as a
+/// cheap version marker — letting the MCP server detect a re-indexed
+/// codebase without requiring a restart.
+fn index_mtime() -> Option<std::time::SystemTime> {
+    std::fs::metadata(Storage::default_index_dir().join("meta.json"))
+        .and_then(|m| m.modified())
+        .ok()
+}
+
 pub async fn run() -> needle::Result<()> {
     let cloud = CloudConfig::from_env();
     let llm   = needle::llm::LlmClient::from_env();
 
     // Load local index (optional when cloud is configured)
-    let local: Option<(QueryEngine, CodeGraph)> = if Storage::index_exists() {
-        let storage  = Storage::new(Storage::default_index_dir())?;
-        let config   = Storage::load_config().unwrap_or_default();
-        let bm25     = storage.load_bm25()?;
-        let hnsw     = storage.load_hnsw()?;
-        let chunks   = storage.load_chunks()?;
-        let graph    = storage.load_graph().unwrap_or_default();
-        let embedding = EmbeddingModel::new(config.embedding_dim)?;
-        Some((QueryEngine::new(bm25, hnsw, chunks, embedding), graph))
-    } else {
-        if cloud.is_none() {
-            eprintln!(
-                "[needle-mcp] No local index and no cloud config.\n\
-                 • Local:  run `needle init <dirs...>` to index a codebase\n\
-                 • Cloud:  set NEEDLE_API_KEY + NEEDLE_CLOUD_URL env vars"
-            );
-            std::process::exit(1);
-        }
-        None
-    };
+    let mut local = load_local()?;
+    let mut local_mtime = index_mtime();
+
+    if local.is_none() && cloud.is_none() {
+        eprintln!(
+            "[needle-mcp] No local index and no cloud config.\n\
+             • Local:  run `needle init <dirs...>` to index a codebase\n\
+             • Cloud:  set NEEDLE_API_KEY + NEEDLE_CLOUD_URL env vars"
+        );
+        std::process::exit(1);
+    }
 
     let mut reader = BufReader::new(tokio::io::stdin());
     let mut stdout = tokio::io::stdout();
@@ -148,6 +163,21 @@ pub async fn run() -> needle::Result<()> {
                 continue;
             }
         };
+
+        // Hot-reload: if the codebase was re-indexed since we last loaded
+        // (e.g. `needle init` ran again, possibly against a different
+        // directory), pick up the new index without requiring this MCP
+        // server process to be restarted.
+        let fresh_mtime = index_mtime();
+        if fresh_mtime != local_mtime {
+            match load_local() {
+                Ok(new_local) => {
+                    local = new_local;
+                    local_mtime = fresh_mtime;
+                }
+                Err(e) => eprintln!("[needle-mcp] index reload failed: {e}"),
+            }
+        }
 
         let is_notif = req.id.is_none();
         let id = req.id.clone();
