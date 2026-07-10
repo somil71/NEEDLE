@@ -1190,6 +1190,121 @@ html.light .demo-badge.both { color: #065F46; background: rgba(16,185,129,0.08);
 .divider-label::before, .divider-label::after {
   content: ''; flex: 1; height: 1px; background: var(--border);
 }
+
+/* ── Analysis pages ─────────────────────────────────────── */
+.analysis-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 22px;
+  min-width: 120px;
+}
+.asc-label { font-size: 0.75rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.asc-value { font-size: 1.75rem; font-weight: 800; font-family: var(--mono); }
+
+.health-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 14px;
+}
+.hs-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hs-badge {
+  font-size: 0.75rem;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-radius: 99px;
+  padding: 1px 8px;
+  font-weight: 600;
+}
+.hs-item {
+  font-size: 0.875rem;
+  color: var(--text-2);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+.hs-item:last-child { border-bottom: none; }
+
+.penalty-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+.penalty-label { font-size: 0.75rem; color: var(--text-3); text-transform: uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.penalty-val { font-size: 1.125rem; font-weight: 700; font-family: var(--mono); }
+
+.sec-issue {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.sec-sev {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.sec-sev.high   { background: rgba(239,68,68,.15);  color: #F87171; }
+.sec-sev.medium { background: rgba(245,158,11,.15); color: #FBBF24; }
+.sec-sev.low    { background: rgba(148,163,184,.12); color: var(--text-3); }
+.sec-body { flex: 1; min-width: 0; }
+.sec-kind { font-size: 0.8125rem; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.sec-file { font-size: 0.8125rem; color: var(--text-2); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sec-snippet { font-size: 0.8125rem; color: var(--text-3); font-family: var(--mono); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.churn-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.churn-row:last-child { border-bottom: none; }
+.churn-file { font-family: var(--mono); font-size: 0.8125rem; color: var(--text-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.churn-bar-wrap { width: 160px; height: 8px; background: var(--surface-2); border-radius: 4px; flex-shrink: 0; }
+.churn-bar { height: 100%; border-radius: 4px; background: var(--accent); transition: width .3s; }
+.churn-count { font-size: 0.75rem; color: var(--text-3); font-family: var(--mono); width: 36px; text-align: right; flex-shrink: 0; }
+
+.blast-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+.blast-depth {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+  flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -1214,6 +1329,10 @@ html.light .demo-badge.both { color: #065F46; background: rgba(16,185,129,0.08);
       <button class="nav-link" data-page="setup" onclick="nav('setup')">Setup</button>
       <button class="nav-link" data-page="download" onclick="nav('download')">Download</button>
       <button class="nav-link" data-page="graph" onclick="nav('graph')">Graph</button>
+      <button class="nav-link" data-page="blast" onclick="nav('blast')">Blast Radius</button>
+      <button class="nav-link" data-page="health" onclick="nav('health')">Health</button>
+      <button class="nav-link" data-page="security" onclick="nav('security')">Security</button>
+      <button class="nav-link" data-page="churn" onclick="nav('churn')">Churn</button>
     </div>
 
     <div class="nav-actions">
@@ -2993,6 +3112,146 @@ needle-macos-x64     # Intel</code></pre>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
+<!-- BLAST RADIUS PAGE                                       -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-blast" class="page">
+  <div class="container" style="max-width:900px;padding-top:40px">
+    <div style="margin-bottom:28px">
+      <h2 style="margin-bottom:6px">Blast Radius</h2>
+      <p style="color:var(--text-2);font-size:0.9375rem">Pick a file — see every file that could break if you change it.</p>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:28px">
+      <input id="blast-input" type="text" placeholder="Path to file, e.g. src/auth/login.ts" style="flex:1;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.9375rem;font-family:var(--mono)" oninput="blastSuggest(this.value)">
+      <button class="btn btn-primary" onclick="runBlast()">Analyse</button>
+    </div>
+    <div id="blast-suggest" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:none;max-height:200px;overflow-y:auto;margin-top:-20px;margin-bottom:16px"></div>
+
+    <div id="blast-result" style="display:none">
+      <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+        <div class="analysis-stat-card">
+          <div class="asc-label">Risk Score</div>
+          <div class="asc-value" id="blast-risk" style="color:var(--error)">—</div>
+        </div>
+        <div class="analysis-stat-card">
+          <div class="asc-label">Affected Files</div>
+          <div class="asc-value" id="blast-count">—</div>
+        </div>
+        <div class="analysis-stat-card">
+          <div class="asc-label">Max Depth</div>
+          <div class="asc-value" id="blast-depth">—</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.8125rem;color:var(--text-3);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">AFFECTED FILES</div>
+      <div id="blast-list"></div>
+    </div>
+    <div id="blast-empty" style="text-align:center;padding:60px 0;color:var(--text-3)">Enter a file path above and click Analyse.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- HEALTH PAGE                                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-health" class="page">
+  <div class="container" style="max-width:900px;padding-top:40px">
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">Codebase Health</h2>
+        <p style="color:var(--text-2);font-size:0.9375rem">Structural quality score based on coupling, complexity, and dead code.</p>
+      </div>
+      <button class="btn btn-primary" style="margin-left:auto" onclick="loadHealth()">Refresh</button>
+    </div>
+
+    <div id="health-loading" style="text-align:center;padding:60px 0;color:var(--text-3)"><div class="spinner" style="margin:0 auto 12px"></div>Analysing…</div>
+    <div id="health-content" style="display:none">
+
+      <!-- Grade card -->
+      <div style="display:flex;align-items:center;gap:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px 32px;margin-bottom:24px">
+        <div id="health-grade" style="font-size:5rem;font-weight:800;line-height:1;font-family:var(--mono)">—</div>
+        <div>
+          <div style="font-size:1.25rem;font-weight:700" id="health-score-label">Score: —/100</div>
+          <div style="color:var(--text-2);font-size:0.9rem;margin-top:4px" id="health-summary"></div>
+        </div>
+      </div>
+
+      <!-- Penalty breakdown -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px" id="health-penalties"></div>
+
+      <!-- Sections -->
+      <div class="health-section" id="hs-circular">
+        <div class="hs-title">Circular Dependencies <span class="hs-badge" id="hs-circ-count"></span></div>
+        <div id="hs-circ-list"></div>
+      </div>
+      <div class="health-section" id="hs-gods">
+        <div class="hs-title">God Objects <span class="hs-badge" id="hs-god-count"></span></div>
+        <div id="hs-god-list"></div>
+      </div>
+      <div class="health-section" id="hs-long">
+        <div class="hs-title">Long Files <span class="hs-badge" id="hs-long-count"></span></div>
+        <div id="hs-long-list"></div>
+      </div>
+      <div class="health-section" id="hs-orphan">
+        <div class="hs-title">Orphaned Functions <span class="hs-badge" id="hs-orphan-count"></span></div>
+        <div id="hs-orphan-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SECURITY PAGE                                           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-security" class="page">
+  <div class="container" style="max-width:900px;padding-top:40px">
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">Security Scan</h2>
+        <p style="color:var(--text-2);font-size:0.9375rem">Pattern-based scan for hardcoded secrets, injection risks, and unsafe calls.</p>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center">
+        <select id="sec-filter" onchange="renderSecurityIssues()" style="padding:7px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:0.875rem">
+          <option value="all">All severities</option>
+          <option value="high">High only</option>
+          <option value="medium">Medium only</option>
+          <option value="low">Low only</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadSecurity()">Scan</button>
+      </div>
+    </div>
+
+    <div id="security-loading" style="text-align:center;padding:60px 0;color:var(--text-3);display:none"><div class="spinner" style="margin:0 auto 12px"></div>Scanning…</div>
+
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap" id="sec-stats"></div>
+
+    <div id="security-list"></div>
+    <div id="security-empty" style="text-align:center;padding:60px 0;color:var(--text-3)">Click Scan to run the security analysis.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- CHURN PAGE                                              -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="page-churn" class="page">
+  <div class="container" style="max-width:900px;padding-top:40px">
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin-bottom:4px">Activity Heatmap</h2>
+        <p style="color:var(--text-2);font-size:0.9375rem">Files ranked by git commit frequency — hot spots are where bugs tend to hide.</p>
+      </div>
+      <button class="btn btn-primary" style="margin-left:auto" onclick="loadChurn()">Refresh</button>
+    </div>
+
+    <div id="churn-loading" style="text-align:center;padding:60px 0;color:var(--text-3)"><div class="spinner" style="margin:0 auto 12px"></div>Reading git log…</div>
+    <div id="churn-content" style="display:none">
+      <div id="churn-bars"></div>
+    </div>
+    <div id="churn-empty" style="display:none;text-align:center;padding:60px 0;color:var(--text-3)">No git history found in the indexed directory.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
 <!-- DASHBOARD PAGE                                         -->
 <!-- ═══════════════════════════════════════════════════════ -->
 <div id="page-dashboard" class="page">
@@ -3084,7 +3343,7 @@ needle-macos-x64     # Intel</code></pre>
 <!-- ═══════════════════════════════════════════════════════ -->
 <script>
 // ── Router ──────────────────────────────────────────────
-const PAGES = ['home','search','index','setup','download','settings','privacy','terms','graph','dashboard'];
+const PAGES = ['home','search','index','setup','download','settings','privacy','terms','graph','dashboard','blast','health','security','churn'];
 
 function nav(page) {
   PAGES.forEach(p => {
@@ -3097,10 +3356,14 @@ function nav(page) {
   window.location.hash = '/' + (page === 'home' ? '' : page);
   window.scrollTo(0, 0);
 
-  if (page === 'index') loadIndexPage();
-  if (page === 'setup') initSetupPage();
+  if (page === 'index')    loadIndexPage();
+  if (page === 'setup')    initSetupPage();
   if (page === 'dashboard') loadDashboard();
-  if (page === 'graph') loadGraph();
+  if (page === 'graph')    loadGraph();
+  if (page === 'health')   loadHealth();
+  if (page === 'security') loadSecurity();
+  if (page === 'churn')    loadChurn();
+  if (page === 'blast')    initBlastPage();
 }
 
 function initSetupPage() {
@@ -4220,6 +4483,247 @@ function toggleFaq(btn) {
   const isOpen = item.classList.contains('open');
   document.querySelectorAll('.faq-item.open').forEach(el => el.classList.remove('open'));
   if (!isOpen) item.classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════════
+// BLAST RADIUS
+// ══════════════════════════════════════════════════════════
+let _blastFiles = [];
+
+async function initBlastPage() {
+  if (_blastFiles.length) return;
+  const res = await fetch('/api/files').catch(() => null);
+  if (!res || !res.ok) return;
+  const data = await res.json();
+  _blastFiles = (data.files || []).map(f => f.path);
+}
+
+function blastSuggest(val) {
+  const box = document.getElementById('blast-suggest');
+  if (!val || val.length < 2) { box.style.display = 'none'; return; }
+  const matches = _blastFiles.filter(f => f.toLowerCase().includes(val.toLowerCase())).slice(0, 10);
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(f =>
+    `<div style="padding:8px 14px;cursor:pointer;font-family:var(--mono);font-size:0.8125rem;color:var(--text-2);border-bottom:1px solid var(--border)" onmousedown="pickBlastFile('${f.replace(/'/g,"\\'")}')">
+       ${f.replace(val, `<strong style="color:var(--text)">${val}</strong>`)}
+     </div>`
+  ).join('');
+}
+
+function pickBlastFile(path) {
+  document.getElementById('blast-input').value = path;
+  document.getElementById('blast-suggest').style.display = 'none';
+  runBlast();
+}
+
+async function runBlast() {
+  document.getElementById('blast-suggest').style.display = 'none';
+  const file = document.getElementById('blast-input').value.trim();
+  if (!file) return;
+
+  document.getElementById('blast-result').style.display = 'none';
+  document.getElementById('blast-empty').textContent = 'Analysing…';
+  document.getElementById('blast-empty').style.display = 'block';
+
+  const res = await fetch('/api/blast-radius?file=' + encodeURIComponent(file)).catch(() => null);
+  if (!res || !res.ok) {
+    document.getElementById('blast-empty').textContent = 'Error calling API.';
+    return;
+  }
+  const data = await res.json();
+
+  document.getElementById('blast-empty').style.display = 'none';
+  document.getElementById('blast-result').style.display = 'block';
+
+  const risk = data.risk_score || 0;
+  const riskEl = document.getElementById('blast-risk');
+  riskEl.textContent = risk + '/100';
+  riskEl.style.color = risk >= 70 ? 'var(--error)' : risk >= 40 ? 'var(--warning)' : 'var(--success)';
+
+  document.getElementById('blast-count').textContent = data.total_files ?? 0;
+  const maxDepth = (data.affected || []).reduce((m, a) => Math.max(m, a.depth), 0);
+  document.getElementById('blast-depth').textContent = maxDepth;
+
+  const list = document.getElementById('blast-list');
+  if (!data.affected || !data.affected.length) {
+    list.innerHTML = '<p style="color:var(--text-3);font-size:0.875rem">No files depend on this one — safe to change.</p>';
+    return;
+  }
+  list.innerHTML = data.affected.map(a =>
+    `<div class="blast-file-row">
+       <span class="blast-depth">depth ${a.depth}</span>
+       <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.path}</span>
+       <button style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:0.75rem;flex-shrink:0" onclick="openFile('${a.path.replace(/'/g,"\\'")}')">open</button>
+     </div>`
+  ).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// HEALTH SCORE
+// ══════════════════════════════════════════════════════════
+async function loadHealth() {
+  document.getElementById('health-loading').style.display = 'block';
+  document.getElementById('health-content').style.display = 'none';
+
+  const res = await fetch('/api/health').catch(() => null);
+  if (!res || !res.ok) {
+    document.getElementById('health-loading').textContent = 'Failed to load health data.';
+    return;
+  }
+  const d = await res.json();
+
+  document.getElementById('health-loading').style.display = 'none';
+  document.getElementById('health-content').style.display = 'block';
+
+  const gradeEl = document.getElementById('health-grade');
+  gradeEl.textContent = d.grade;
+  gradeEl.style.color = { A:'var(--success)', B:'#4ADE80', C:'var(--warning)', D:'#F97316', F:'var(--error)' }[d.grade] || 'var(--text)';
+  document.getElementById('health-score-label').textContent = `Score: ${d.score}/100`;
+  document.getElementById('health-summary').textContent =
+    `${d.circular_deps.length} circular deps · ${d.god_objects.length} god objects · ${d.long_files.length} long files · avg coupling ${(d.avg_coupling||0).toFixed(1)}`;
+
+  const det = d.details || {};
+  document.getElementById('health-penalties').innerHTML = [
+    ['Circular deps', det.circular_dep_penalty],
+    ['God objects',   det.god_object_penalty],
+    ['Long files',    det.long_file_penalty],
+    ['Orphans',       det.orphan_penalty],
+    ['Coupling',      det.coupling_penalty],
+  ].map(([label, val]) => `<div class="penalty-card"><div class="penalty-label">${label}</div><div class="penalty-val" style="color:${val>0?'var(--error)':'var(--success)'}">-${val}</div></div>`).join('');
+
+  renderHealthSection('hs-circ-list', 'hs-circ-count', d.circular_deps,
+    c => c.join(' → '));
+  renderHealthSection('hs-god-list', 'hs-god-count', d.god_objects,
+    g => `${g.name} (${g.caller_count} callers, ${g.callee_count} callees) — ${g.file}`);
+  renderHealthSection('hs-long-list', 'hs-long-count', d.long_files,
+    f => `${f.path}  (${f.lines} lines)`);
+  renderHealthSection('hs-orphan-list', 'hs-orphan-count', d.orphaned_functions,
+    f => f);
+}
+
+function renderHealthSection(listId, countId, items, fmt) {
+  document.getElementById(countId).textContent = items.length;
+  const el = document.getElementById(listId);
+  if (!items.length) {
+    el.innerHTML = '<div class="hs-item" style="color:var(--success)">None found ✓</div>';
+    return;
+  }
+  el.innerHTML = items.slice(0, 20).map(i => `<div class="hs-item">${fmt(i)}</div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// SECURITY SCAN
+// ══════════════════════════════════════════════════════════
+let _secIssues = [];
+
+async function loadSecurity() {
+  document.getElementById('security-empty').style.display = 'none';
+  document.getElementById('security-loading').style.display = 'block';
+  document.getElementById('security-list').innerHTML = '';
+  document.getElementById('sec-stats').innerHTML = '';
+
+  const res = await fetch('/api/security').catch(() => null);
+  document.getElementById('security-loading').style.display = 'none';
+
+  if (!res || !res.ok) {
+    document.getElementById('security-empty').textContent = 'Error running scan.';
+    document.getElementById('security-empty').style.display = 'block';
+    return;
+  }
+  const data = await res.json();
+  _secIssues = data.issues || [];
+
+  const high   = _secIssues.filter(i => i.severity === 'high').length;
+  const medium = _secIssues.filter(i => i.severity === 'medium').length;
+  const low    = _secIssues.filter(i => i.severity === 'low').length;
+
+  document.getElementById('sec-stats').innerHTML = [
+    ['High',   high,   '#F87171', 'rgba(239,68,68,.15)'],
+    ['Medium', medium, '#FBBF24', 'rgba(245,158,11,.15)'],
+    ['Low',    low,    'var(--text-3)', 'var(--surface-2)'],
+  ].map(([label, count, color, bg]) =>
+    `<div style="background:${bg};border-radius:var(--radius);padding:12px 20px;display:flex;gap:10px;align-items:center">
+       <span style="font-size:1.25rem;font-weight:800;color:${color};font-family:var(--mono)">${count}</span>
+       <span style="font-size:0.8125rem;color:${color}">${label}</span>
+     </div>`
+  ).join('');
+
+  renderSecurityIssues();
+}
+
+function renderSecurityIssues() {
+  const filter = document.getElementById('sec-filter').value;
+  const issues = filter === 'all' ? _secIssues : _secIssues.filter(i => i.severity === filter);
+  const list = document.getElementById('security-list');
+  if (!issues.length) {
+    list.innerHTML = '';
+    document.getElementById('security-empty').textContent = _secIssues.length ? 'No issues at this severity level.' : 'No issues found — good job!';
+    document.getElementById('security-empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('security-empty').style.display = 'none';
+  list.innerHTML = issues.map(i =>
+    `<div class="sec-issue">
+       <span class="sec-sev ${i.severity}">${i.severity}</span>
+       <div class="sec-body">
+         <div class="sec-kind">${i.kind.replace(/_/g,' ')}</div>
+         <div class="sec-file">${i.file}:${i.line}</div>
+         <div class="sec-snippet">${escHtml(i.snippet)}</div>
+       </div>
+       <button style="background:none;border:none;cursor:pointer;color:var(--text-3);font-size:0.75rem;flex-shrink:0;align-self:flex-start;padding-top:4px" onclick="openFile('${i.file.replace(/'/g,"\\'")}', ${i.line})">open</button>
+     </div>`
+  ).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ══════════════════════════════════════════════════════════
+// CHURN / ACTIVITY HEATMAP
+// ══════════════════════════════════════════════════════════
+async function loadChurn() {
+  document.getElementById('churn-loading').style.display = 'block';
+  document.getElementById('churn-content').style.display = 'none';
+  document.getElementById('churn-empty').style.display = 'none';
+
+  const res = await fetch('/api/git/churn').catch(() => null);
+  document.getElementById('churn-loading').style.display = 'none';
+
+  if (!res || !res.ok) {
+    document.getElementById('churn-empty').textContent = 'Error loading git data.';
+    document.getElementById('churn-empty').style.display = 'block';
+    return;
+  }
+  const data = await res.json();
+  const entries = data.entries || [];
+
+  if (!entries.length) {
+    document.getElementById('churn-empty').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('churn-content').style.display = 'block';
+  const maxCommits = entries[0].commits || 1;
+
+  document.getElementById('churn-bars').innerHTML = entries.slice(0, 80).map((e, idx) => {
+    const pct = Math.max(4, (e.commits / maxCommits) * 100);
+    const hue = Math.round(120 - (e.commits / maxCommits) * 120); // green→red
+    const color = `hsl(${hue},70%,55%)`;
+    const shortPath = e.path.replace(/\\/g, '/').split('/').slice(-3).join('/');
+    return `<div class="churn-row">
+      <span style="color:var(--text-3);font-size:0.75rem;font-family:var(--mono);width:24px;flex-shrink:0;text-align:right">${idx+1}</span>
+      <span class="churn-file" title="${e.path}">${shortPath}</span>
+      ${e.owner ? `<span style="font-size:0.75rem;color:var(--text-3);flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.owner.split('@')[0]}</span>` : ''}
+      <div class="churn-bar-wrap"><div class="churn-bar" style="width:${pct}%;background:${color}"></div></div>
+      <span class="churn-count">${e.commits}</span>
+    </div>`;
+  }).join('');
+}
+
+function openFile(path, line) {
+  fetch('/api/open', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ path, line }) });
 }
 
 </script>

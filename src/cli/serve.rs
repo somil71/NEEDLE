@@ -235,9 +235,14 @@ pub async fn run(port: u16, no_open: bool) -> needle::Result<()> {
         .route("/api/open",    post(api_open))
         .route("/api/ask",     post(api_ask))
         .route("/api/similar", post(api_similar))
-        .route("/api/todos",   get(api_todos))
-        .route("/api/files",   get(api_files))
-        .route("/api/graph",   get(api_graph))
+        .route("/api/todos",         get(api_todos))
+        .route("/api/files",         get(api_files))
+        .route("/api/graph",         get(api_graph))
+        .route("/api/blast-radius",  get(api_blast_radius))
+        .route("/api/health",        get(api_health))
+        .route("/api/security",      get(api_security))
+        .route("/api/patterns",      get(api_patterns))
+        .route("/api/git/churn",     get(api_git_churn))
         // Auth & user APIs (always registered; return 503 if OAuth not configured)
         .route("/auth/github",          get(api_auth_github))
         .route("/auth/callback",        get(api_auth_callback))
@@ -444,6 +449,85 @@ async fn api_status_handler(State(state): State<AppState>) -> Json<StatusRespons
 
 async fn api_graph(State(state): State<AppState>) -> Json<serde_json::Value> {
     Json(serde_json::to_value(&*state.graph).unwrap_or(serde_json::json!({"nodes":[],"edges":[],"stats":{}})))
+}
+
+// ---------------------------------------------------------------------------
+// Analysis handlers
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct BlastParams {
+    file: Option<String>,
+}
+
+async fn api_blast_radius(State(state): State<AppState>, Query(p): Query<BlastParams>) -> Json<serde_json::Value> {
+    let file = match p.file {
+        Some(f) => f,
+        None => return Json(serde_json::json!({"error":"missing ?file= parameter"})),
+    };
+    let graph = Arc::clone(&state.graph);
+    let result = tokio::task::spawn_blocking(move || needle::analysis::blast_radius(&graph, &file))
+        .await
+        .unwrap_or_else(|_| needle::analysis::BlastResult {
+            source_file: String::new(), affected: vec![], total_files: 0, risk_score: 0,
+        });
+    Json(serde_json::to_value(result).unwrap_or_default())
+}
+
+async fn api_health(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let graph = Arc::clone(&state.graph);
+    let result = tokio::task::spawn_blocking(move || needle::analysis::health_score(&graph))
+        .await
+        .unwrap_or_else(|_| needle::analysis::HealthReport {
+            grade: "?".into(), score: 0, circular_deps: vec![], god_objects: vec![],
+            orphaned_functions: vec![], long_files: vec![], avg_coupling: 0.0,
+            details: needle::analysis::HealthDetails { circular_dep_penalty: 0, god_object_penalty: 0, orphan_penalty: 0, long_file_penalty: 0, coupling_penalty: 0 },
+        });
+    Json(serde_json::to_value(result).unwrap_or_default())
+}
+
+async fn api_security(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let engine = match state.engine.as_ref() {
+        Some(e) => e.clone(),
+        None => return Json(serde_json::json!({"issues":[], "total":0})),
+    };
+    let issues = tokio::task::spawn_blocking(move || {
+        let guard = engine.lock().unwrap();
+        needle::analysis::scan_security(&guard.chunks)
+    }).await.unwrap_or_default();
+    let total = issues.len();
+    Json(serde_json::json!({ "issues": issues, "total": total }))
+}
+
+async fn api_patterns(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let graph = Arc::clone(&state.graph);
+    let result = tokio::task::spawn_blocking(move || needle::analysis::detect_patterns(&graph))
+        .await
+        .unwrap_or_else(|_| needle::analysis::PatternReport {
+            god_objects: vec![], long_files: vec![], high_coupling: vec![],
+            layer_violations: vec![], singleton_suspects: vec![],
+        });
+    Json(serde_json::to_value(result).unwrap_or_default())
+}
+
+async fn api_git_churn(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let dirs: Vec<String> = if state.storage.is_some() {
+        Storage::load_config().map(|c| c.watched_dirs).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    if dirs.is_empty() {
+        return Json(serde_json::json!({"entries": [], "total": 0}));
+    }
+
+    let dir = dirs[0].clone();
+    let entries = tokio::task::spawn_blocking(move || needle::analysis::git_churn(&dir))
+        .await
+        .unwrap_or_default();
+
+    let total = entries.len();
+    Json(serde_json::json!({ "entries": entries, "total": total }))
 }
 
 async fn api_open(Json(req): Json<OpenRequest>) -> Json<serde_json::Value> {

@@ -3,6 +3,7 @@
 //! A hybrid keyword + semantic search engine that indexes files, code, and notes
 //! entirely offline with sub-5ms query latency.
 
+pub mod analysis;
 pub mod chunking;
 pub mod config;
 pub mod embedding;
