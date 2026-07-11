@@ -58,16 +58,16 @@ impl BM25Index {
             *tf_map.entry(token.clone()).or_insert(0) += 1;
         }
 
-        // Write to postings lists
-        for (term, tf) in &tf_map {
+        // Write to postings lists (consume tf_map to avoid an extra clone per term)
+        for (term, tf) in tf_map {
             self.postings
                 .entry(term.clone())
                 .or_default()
                 .push(PostingsEntry {
                     chunk_id: chunk.id,
-                    term_freq: *tf,
+                    term_freq: tf,
                 });
-            *self.doc_freqs.entry(term.clone()).or_insert(0) += 1;
+            *self.doc_freqs.entry(term).or_insert(0) += 1;
         }
 
         self.chunk_lengths.insert(chunk.id, token_count);

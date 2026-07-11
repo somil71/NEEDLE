@@ -157,8 +157,8 @@ fn create_main_window(handle: &tauri::AppHandle) {
 
 fn show_or_create_window(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        window.show().unwrap();
-        window.set_focus().unwrap();
+        let _ = window.show();
+        let _ = window.set_focus();
     } else {
         create_main_window(app);
     }

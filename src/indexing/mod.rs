@@ -51,9 +51,10 @@ impl Index {
     }
 
     pub fn add_chunk(&mut self, chunk: Chunk, embedding: Vec<f32>) -> crate::Result<()> {
-        self.chunk_store.insert(chunk.id, chunk.clone());
+        let chunk_id = chunk.id;
         self.inverted.add_chunk(&chunk)?;
-        self.hnsw.add_node(chunk.id, embedding)?;
+        self.hnsw.add_node(chunk_id, embedding)?;
+        self.chunk_store.insert(chunk_id, chunk);
         Ok(())
     }
 

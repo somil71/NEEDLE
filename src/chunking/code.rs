@@ -115,11 +115,6 @@ fn extract_blocks(content: &str, language: Language) -> Option<Vec<CodeBlock>> {
     let tree = parser.parse(content, None)?;
     let root = tree.root_node();
 
-    if root.has_error() {
-        // Fall through to fallback if parse has errors
-        // (still extract what we can from non-error subtrees)
-    }
-
     let interesting_kinds = interesting_node_kinds(language);
     let mut blocks = Vec::new();
     collect_nodes(root, content.as_bytes(), &interesting_kinds, language, &mut blocks);
@@ -162,41 +157,68 @@ fn interesting_node_kinds(language: Language) -> Vec<(&'static str, ChunkType)> 
     }
 }
 
+// Non-recursive DFS using TreeCursor's goto_* API.
+// The recursive approach overflows the 1 MB Windows default thread stack
+// on large files; this iterative version uses only O(depth) cursor state.
 fn collect_nodes(
-    node: tree_sitter::Node,
+    root: tree_sitter::Node,
     source: &[u8],
     kinds: &[(&'static str, ChunkType)],
-    language: Language,
+    _language: Language,
     blocks: &mut Vec<CodeBlock>,
 ) {
-    let node_kind = node.kind();
+    let mut cursor = root.walk();
+    let mut depth: usize = 0;
+    // Track whether we've already captured the current node (to decide
+    // whether to descend for method extraction inside impl/class nodes).
+    let mut skip_subtree = false;
 
-    if let Some((_, chunk_type)) = kinds.iter().find(|(k, _)| *k == node_kind) {
-        if let Ok(text) = std::str::from_utf8(&source[node.start_byte()..node.end_byte()]) {
-            blocks.push(CodeBlock {
-                text: text.to_string(),
-                start_byte: node.start_byte(),
-                end_byte: node.end_byte(),
-                start_line: node.start_position().row as u32 + 1,
-                end_line: node.end_position().row as u32 + 1,
-                chunk_type: *chunk_type,
-            });
-            // For impl blocks and classes, also recurse into methods
-            // (so each method is also a separate chunk)
-            if matches!(chunk_type, ChunkType::Class) {
-                let mut cursor = node.walk();
-                for child in node.children(&mut cursor) {
-                    collect_nodes(child, source, kinds, language, blocks);
+    loop {
+        if !skip_subtree {
+            let node = cursor.node();
+            let nk = node.kind();
+
+            if let Some((_, chunk_type)) = kinds.iter().find(|(k, _)| *k == nk) {
+                if let Ok(text) = std::str::from_utf8(&source[node.start_byte()..node.end_byte()]) {
+                    blocks.push(CodeBlock {
+                        text: text.to_string(),
+                        start_byte: node.start_byte(),
+                        end_byte: node.end_byte(),
+                        start_line: node.start_position().row as u32 + 1,
+                        end_line: node.end_position().row as u32 + 1,
+                        chunk_type: *chunk_type,
+                    });
+                }
+                // For non-class nodes skip the subtree (functions/structs
+                // don't need further decomposition at this level).
+                // For class/impl nodes, descend to also extract methods.
+                if !matches!(chunk_type, ChunkType::Class) {
+                    skip_subtree = true;
                 }
             }
-            return;
         }
-    }
 
-    // Recurse into children for everything not already captured
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        collect_nodes(child, source, kinds, language, blocks);
+        // Descend unless we're skipping this subtree
+        if !skip_subtree && cursor.goto_first_child() {
+            depth += 1;
+            continue;
+        }
+
+        skip_subtree = false;
+
+        // Move to the next sibling or back up
+        if cursor.goto_next_sibling() {
+            continue;
+        }
+        loop {
+            if depth == 0 || !cursor.goto_parent() {
+                return;
+            }
+            depth -= 1;
+            if cursor.goto_next_sibling() {
+                break;
+            }
+        }
     }
 }
 

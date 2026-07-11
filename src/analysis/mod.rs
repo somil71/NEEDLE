@@ -3,6 +3,11 @@
 //! Each function is pure / read-only — no disk writes.
 //! Used by `needle serve` API handlers.
 
+pub mod security;
+pub mod churn;
+pub use security::{SecurityIssue, scan_security};
+pub use churn::{ChurnEntry, git_churn};
+
 use crate::graph::{CodeGraph, EdgeKind, NodeKind};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -131,7 +136,7 @@ pub fn health_score(graph: &CodeGraph) -> HealthReport {
         .filter_map(|n| {
             let inc = call_in.get(&n.id).copied().unwrap_or(0);
             let out = call_out.get(&n.id).copied().unwrap_or(0);
-            if inc + out >= 10 {
+            if inc + out >= 15 {
                 Some(GodObject { name: n.name.clone(), file: n.file_path.clone(), caller_count: inc, callee_count: out })
             } else { None }
         })
@@ -142,16 +147,31 @@ pub fn health_score(graph: &CodeGraph) -> HealthReport {
         .map(|e| e.to)
         .collect();
 
+    // Only check standalone Functions — Methods are called via instance syntax
+    // (e.g. `config.save()`) which tree-sitter's name-based graph can't trace.
     let orphaned: Vec<String> = graph.nodes.iter()
-        .filter(|n| matches!(n.kind, NodeKind::Function | NodeKind::Method))
+        .filter(|n| matches!(n.kind, NodeKind::Function))
         .filter(|n| !has_incoming.contains(&n.id))
-        .filter(|n| !n.name.starts_with('_') && n.name != "main" && n.name != "new")
+        .filter(|n| {
+            // Use the bare name (last segment of qualified names like "Type::method")
+            let bare = n.name.rsplit("::").next().unwrap_or(n.name.as_str());
+            // Exclude known entry-point and trait-dispatch patterns:
+            //   - Names starting with '_' are intentionally unused
+            //   - "main", "new", "run", "start", "stop": CLI/lifecycle entry points
+            //   - "default": Default trait impl, called via Default::default()
+            //   - "chunk", "embed": trait methods called via dynamic dispatch
+            !bare.starts_with('_')
+            && !matches!(bare,
+                "main" | "new" | "run" | "start" | "stop"
+                | "default" | "chunk" | "embed"
+            )
+        })
         .take(20)
         .map(|n| format!("{}:{}", strip_unc(&n.file_path), n.name))
         .collect();
 
     let long_files: Vec<LongFile> = graph.nodes.iter()
-        .filter(|n| matches!(n.kind, NodeKind::Module) && n.line_end.saturating_sub(n.line_start) > 400)
+        .filter(|n| matches!(n.kind, NodeKind::Module) && n.line_end.saturating_sub(n.line_start) > 600)
         .map(|n| LongFile { path: strip_unc(&n.file_path), lines: n.line_end.saturating_sub(n.line_start) })
         .collect();
 
@@ -165,7 +185,9 @@ pub fn health_score(graph: &CodeGraph) -> HealthReport {
 
     let circular_penalty  = (circular_deps.len() as u32 * 15).min(40);
     let god_penalty       = (god_objects.len() as u32 * 5).min(25);
-    let orphan_penalty    = (orphaned.len() as u32 / 5).min(10);
+    // Divisor 25: lenient for Axum handlers registered via qualified paths
+    // (e.g. handlers_core::api_search) that tree-sitter can't trace as callers.
+    let orphan_penalty    = (orphaned.len() as u32 / 25).min(10);
     let long_penalty      = (long_files.len() as u32 * 3).min(15);
     let coupling_penalty  = if avg_coupling > 10.0 { 15 } else if avg_coupling > 5.0 { 7 } else { 0 };
 
@@ -233,83 +255,6 @@ fn dfs_cycles(
     color.insert(node, 2);
 }
 
-// ─── Security Scanning ────────────────────────────────────────────────────────
-
-#[derive(Serialize)]
-pub struct SecurityIssue {
-    pub severity: String,
-    pub kind: String,
-    pub file: String,
-    pub line: u32,
-    pub snippet: String,
-}
-
-pub fn scan_security(chunks: &std::collections::HashMap<u64, crate::schema::Chunk>) -> Vec<SecurityIssue> {
-    const HIGH: &[(&str, &str)] = &[
-        ("password = \"",        "hardcoded_secret"),
-        ("password = '",         "hardcoded_secret"),
-        ("secret_key = \"",      "hardcoded_secret"),
-        ("secret = \"",          "hardcoded_secret"),
-        ("api_key = \"",         "hardcoded_secret"),
-        ("api_key = '",          "hardcoded_secret"),
-        ("aws_secret",           "hardcoded_secret"),
-        ("BEGIN RSA PRIVATE KEY","exposed_private_key"),
-        ("BEGIN PRIVATE KEY",    "exposed_private_key"),
-    ];
-    const MEDIUM: &[(&str, &str)] = &[
-        ("eval(",                  "unsafe_eval"),
-        (".innerHTML =",           "xss_risk"),
-        ("innerHTML+=",            "xss_risk"),
-        ("dangerouslySetInnerHTML","xss_risk"),
-        ("document.write(",        "xss_risk"),
-        ("os.system(",             "shell_injection"),
-        ("subprocess.call(",       "shell_injection"),
-        ("subprocess.Popen(",      "shell_injection"),
-        ("shell=True",             "shell_injection"),
-        ("cursor.execute(f\"",     "sql_injection"),
-        ("cursor.execute(f'",      "sql_injection"),
-        ("execute(\"SELECT",       "sql_injection"),
-    ];
-    const LOW: &[(&str, &str)] = &[
-        ("TODO: security",  "todo_security"),
-        ("FIXME: security", "todo_security"),
-        ("nosec",           "security_suppression"),
-        ("// eslint-disable","lint_suppression"),
-        ("#nosec",          "security_suppression"),
-    ];
-
-    let mut issues: Vec<SecurityIssue> = Vec::new();
-
-    for chunk in chunks.values() {
-        for (i, line) in chunk.content.lines().enumerate() {
-            let line_no = chunk.line_start + i as u32;
-            let lower = line.to_lowercase();
-            let snippet: String = line.trim().chars().take(150).collect();
-
-            for (pat, kind) in HIGH {
-                if lower.contains(&pat.to_lowercase()) {
-                    issues.push(SecurityIssue { severity: "high".into(), kind: kind.to_string(), file: strip_unc(&chunk.file_path), line: line_no, snippet: snippet.clone() });
-                }
-            }
-            for (pat, kind) in MEDIUM {
-                if line.contains(pat) {
-                    issues.push(SecurityIssue { severity: "medium".into(), kind: kind.to_string(), file: strip_unc(&chunk.file_path), line: line_no, snippet: snippet.clone() });
-                }
-            }
-            for (pat, kind) in LOW {
-                if line.contains(pat) {
-                    issues.push(SecurityIssue { severity: "low".into(), kind: kind.to_string(), file: strip_unc(&chunk.file_path), line: line_no, snippet: snippet.clone() });
-                }
-            }
-        }
-    }
-
-    issues.sort_by_key(|i| match i.severity.as_str() { "high" => 0u8, "medium" => 1, _ => 2 });
-    issues.dedup_by(|a, b| a.file == b.file && a.line == b.line && a.kind == b.kind);
-    issues.truncate(300);
-    issues
-}
-
 // ─── Pattern Detection ────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -354,7 +299,7 @@ pub fn detect_patterns(graph: &CodeGraph) -> PatternReport {
         .collect();
 
     let long_files: Vec<LongFile> = graph.nodes.iter()
-        .filter(|n| matches!(n.kind, NodeKind::Module) && n.line_end.saturating_sub(n.line_start) > 400)
+        .filter(|n| matches!(n.kind, NodeKind::Module) && n.line_end.saturating_sub(n.line_start) > 600)
         .map(|n| LongFile { path: strip_unc(&n.file_path), lines: n.line_end.saturating_sub(n.line_start) })
         .collect();
 
@@ -420,66 +365,8 @@ fn layer_order(layer: &str) -> i32 {
     match layer { "ui" => 3, "service" => 2, "data" => 1, "util" => 0, "config" => -1, _ => -2 }
 }
 
-// ─── Git Churn ────────────────────────────────────────────────────────────────
-
-#[derive(Serialize)]
-pub struct ChurnEntry {
-    pub path: String,
-    pub commits: u32,
-    pub owner: String,
-}
-
-/// Run `git log` in `dir` and return per-file commit counts + primary author.
-/// Safe to call even if dir is not a git repo — returns empty vec in that case.
-pub fn git_churn(dir: &str) -> Vec<ChurnEntry> {
-    let out = std::process::Command::new("git")
-        .args(["-C", dir, "log", "--format=%ae", "--name-only", "--diff-filter=MA", "-n", "1000"])
-        .output();
-
-    let Ok(out) = out else { return vec![] };
-    if !out.status.success() { return vec![]; }
-
-    let text = String::from_utf8_lossy(&out.stdout);
-    let mut file_data: HashMap<String, (u32, HashMap<String, u32>)> = HashMap::new();
-    let mut current_author = String::new();
-
-    for raw_line in text.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() { continue; }
-
-        // Author lines contain @
-        if line.contains('@') && !line.contains('/') && !line.contains('\\') && !line.contains('.') {
-            current_author = line.to_string();
-            continue;
-        }
-        if line.contains('@') && !line.contains('/') && !line.contains('\\') {
-            current_author = line.to_string();
-            continue;
-        }
-
-        // File path lines: contain a dot or path separator, don't look like emails
-        let looks_like_file = line.contains('.') || line.contains('/') || line.contains('\\');
-        if looks_like_file && !line.starts_with('[') {
-            let entry = file_data.entry(line.to_string()).or_insert_with(|| (0, HashMap::new()));
-            entry.0 += 1;
-            if !current_author.is_empty() {
-                *entry.1.entry(current_author.clone()).or_default() += 1;
-            }
-        }
-    }
-
-    let mut result: Vec<ChurnEntry> = file_data.into_iter().map(|(path, (commits, authors))| {
-        let owner = authors.into_iter().max_by_key(|(_, c)| *c).map(|(a, _)| a).unwrap_or_default();
-        ChurnEntry { path, commits, owner }
-    }).collect();
-
-    result.sort_by(|a, b| b.commits.cmp(&a.commits));
-    result.truncate(200);
-    result
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-fn strip_unc(path: &str) -> String {
+pub fn strip_unc(path: &str) -> String {
     path.strip_prefix(r"\\?\").unwrap_or(path).to_string()
 }

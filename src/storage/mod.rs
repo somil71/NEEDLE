@@ -36,9 +36,35 @@ impl Storage {
             .join(".needle")
     }
 
-    /// Returns `~/.needle/index/`
+    /// Walks up from the current directory looking for a `.git`, so the
+    /// index resolves to the repo root rather than whatever subdirectory you
+    /// happen to be in. Returns `None` if there's no git repo above cwd —
+    /// callers fall back to the current directory itself in that case.
+    fn find_git_root() -> Option<PathBuf> {
+        let mut dir = std::env::current_dir().ok()?;
+        loop {
+            if dir.join(".git").exists() {
+                return Some(dir);
+            }
+            if !dir.pop() {
+                return None;
+            }
+        }
+    }
+
+    /// Returns the index directory for the current project.
+    ///
+    /// Always scoped to the working directory: `<project_root>/.needle/index`,
+    /// where `project_root` is the nearest git root above cwd, or cwd itself
+    /// if there's no `.git` anywhere above it (e.g. a project that hasn't
+    /// been git-initialized yet). This is deliberately *not* a single global
+    /// path — every distinct project directory gets its own index, so
+    /// indexing one codebase never silently overwrites another's.
     pub fn default_index_dir() -> PathBuf {
-        Self::needle_dir().join("index")
+        let root = Self::find_git_root()
+            .or_else(|| std::env::current_dir().ok())
+            .unwrap_or_else(|| PathBuf::from("."));
+        root.join(".needle").join("index")
     }
 
     /// Returns `~/.needle/config.toml`

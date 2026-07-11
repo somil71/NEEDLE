@@ -5,8 +5,7 @@ use std::path::Path;
 use std::sync::mpsc;
 
 pub struct FileWatcher {
-    #[allow(dead_code)]
-    tx: mpsc::Sender<FileEvent>,
+    _watcher: notify::RecommendedWatcher,
 }
 
 #[derive(Debug, Clone)]
@@ -21,12 +20,10 @@ impl FileWatcher {
     pub fn new(watched_dirs: &[&Path]) -> crate::Result<(Self, mpsc::Receiver<FileEvent>)> {
         let (tx, rx) = mpsc::channel();
 
-        // Set up notify watcher
         let mut watcher = notify::recommended_watcher({
             let tx = tx.clone();
             move |res: notify::Result<notify::Event>| {
                 if let Ok(event) = res {
-                    // Map notify events to our FileEvent
                     match event.kind {
                         notify::EventKind::Create(_) => {
                             for path in &event.paths {
@@ -55,14 +52,10 @@ impl FileWatcher {
             }
         })?;
 
-        // Watch all directories
         for dir in watched_dirs {
             watcher.watch(dir, RecursiveMode::Recursive)?;
         }
 
-        // Keep watcher alive by storing it (would need proper lifecycle management in real impl)
-        std::mem::forget(watcher);
-
-        Ok((Self { tx: tx.clone() }, rx))
+        Ok((Self { _watcher: watcher }, rx))
     }
 }

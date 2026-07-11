@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "needle-serve",
-      "runtimeExecutable": "target/release/needle.exe",
+      "runtimeExecutable": "target/debug/needle.exe",
       "runtimeArgs": ["serve", "--port", "7700"],
       "port": 7700,
       "autoPort": false

@@ -117,12 +117,14 @@ fn collect_files(dir: &Path, config: &Config) -> Vec<(PathBuf, Language)> {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
-            !name.starts_with('.') && !config.should_ignore(&name)
+            !name.starts_with('.')
+                && !config.should_ignore(&name)
+                && !config.should_ignore(&e.path().to_string_lossy())
         })
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_file())
         .filter_map(|e| {
-            let path = e.path().to_path_buf();
+            let path = clean_path(e.path().to_path_buf());
             let ext = path.extension()?.to_str()?;
             let lang = Language::from_extension(ext)?;
             let meta = std::fs::metadata(&path).ok()?;
@@ -131,4 +133,14 @@ fn collect_files(dir: &Path, config: &Config) -> Vec<(PathBuf, Language)> {
             Some((path, lang))
         })
         .collect()
+}
+
+/// Strip Windows extended-length path prefix `\\?\` so paths are consistent.
+fn clean_path(path: PathBuf) -> PathBuf {
+    let s = path.to_string_lossy();
+    if let Some(stripped) = s.strip_prefix(r"\\?\") {
+        PathBuf::from(stripped)
+    } else {
+        path
+    }
 }

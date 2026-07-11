@@ -11,7 +11,6 @@ use needle::Result;
 use chrono::Utc;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -20,7 +19,22 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
     println!("{}", "Needle v0.1.0 — initializing index".bold());
     println!();
 
-    // 1. Validate directories
+    let (valid_dirs, config, storage) = init_workspace(directories)?;
+    let file_entries = scan_files(&valid_dirs, &config);
+
+    if file_entries.is_empty() {
+        println!("\n{} No supported files found.", "Warning:".yellow());
+        return Ok(());
+    }
+
+    let (index, filemap) = build_index(&file_entries, &config).await?;
+    let code_graph = extract_graph(&file_entries);
+    persist_artifacts(&storage, &index, &filemap, &code_graph, &config, file_entries.len())?;
+    warn_if_not_gitignored();
+    Ok(())
+}
+
+fn init_workspace(directories: Vec<String>) -> Result<(Vec<PathBuf>, Config, Storage)> {
     let mut valid_dirs: Vec<PathBuf> = Vec::new();
     for dir in &directories {
         let p = PathBuf::from(dir);
@@ -32,28 +46,27 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
             );
             return Err(needle::Error::InvalidPath(dir.clone()));
         }
-        let canonical = clean_path(p.canonicalize()?);
-        valid_dirs.push(canonical);
+        valid_dirs.push(clean_path(p.canonicalize()?));
     }
 
-    // 2. Build config
     let config = Config {
         watched_dirs: valid_dirs.iter().map(|p| p.to_string_lossy().to_string()).collect(),
         ..Config::default()
     };
 
-    // 3. Set up storage
     let index_dir = Storage::default_index_dir();
     let storage = Storage::new(index_dir)?;
     Storage::save_config(&config)?;
+    Ok((valid_dirs, config, storage))
+}
 
-    // 4. Walk and collect files
-    println!("Scanning directories...");
+fn scan_files(valid_dirs: &[PathBuf], config: &Config) -> Vec<(PathBuf, Language, String)> {
     let mut all_files: Vec<(PathBuf, Language)> = Vec::new();
+    println!("Scanning directories...");
 
     for (i, dir) in valid_dirs.iter().enumerate() {
         let prefix = if i + 1 == valid_dirs.len() { "└──" } else { "├──" };
-        let files = collect_files(dir, &config);
+        let files = collect_files(dir, config);
         println!(
             "  {}  {}    {} files",
             prefix,
@@ -62,25 +75,9 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
         );
         all_files.extend(files);
     }
-
-    if all_files.is_empty() {
-        println!("\n{} No supported files found.", "Warning:".yellow());
-        return Ok(());
-    }
-
     println!();
 
-    // 5. Chunking phase (parallel via rayon)
-    let chunk_bar = ProgressBar::new(all_files.len() as u64);
-    chunk_bar.set_style(
-        ProgressStyle::default_bar()
-            .template("  Chunking  {bar:32.cyan/dim}  {pos}/{len} files  [{elapsed}]")
-            .unwrap()
-            .progress_chars("█▓░"),
-    );
-
-    // Collect (file_path, language, content) entries
-    let file_entries: Vec<(PathBuf, Language, String)> = all_files
+    all_files
         .iter()
         .filter_map(|(path, lang)| {
             let content = if *lang == Language::Pdf {
@@ -90,28 +87,40 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
             };
             Some((path.clone(), *lang, content))
         })
-        .collect();
+        .collect()
+}
 
-    // Parallel chunking
+async fn build_index(
+    file_entries: &[(PathBuf, Language, String)],
+    config: &Config,
+) -> Result<(Index, HashMap<String, Vec<u64>>)> {
+    // Sequential chunking — rayon workers have 1 MB stack on Windows which
+    // overflows on large files; tree-sitter runs on the main thread instead.
+    let chunk_bar = ProgressBar::new(file_entries.len() as u64);
+    chunk_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("  Chunking  {bar:32.cyan/dim}  {pos}/{len} files  [{elapsed}]")
+            .unwrap()
+            .progress_chars("█▓░"),
+    );
+
     let raw_chunks: Vec<needle::schema::Chunk> = file_entries
-        .par_iter()
+        .iter()
         .flat_map(|(path, lang, content)| {
             chunk_bar.inc(1);
             let chunker = detect_chunker(*lang);
             chunker.chunk(content, path, *lang).unwrap_or_default()
         })
         .collect();
-
     chunk_bar.finish_with_message("done");
 
     let total_chunks = raw_chunks.len();
-    let total_files = file_entries.len();
 
-    // 6. Assign chunk IDs and build indexes
-    // Auto-detect Ollama for real semantic embeddings; fall back to hash-projection.
     print!("  Checking for Ollama ({})... ", OLLAMA_EMBED_MODEL);
     let _ = std::io::Write::flush(&mut std::io::stdout());
-    let embed_model = match EmbeddingModel::try_ollama(OLLAMA_DEFAULT_URL, OLLAMA_EMBED_MODEL) {
+    let embed_model = match tokio::task::block_in_place(|| {
+        EmbeddingModel::try_ollama(OLLAMA_DEFAULT_URL, OLLAMA_EMBED_MODEL)
+    }) {
         Some(m) => {
             println!("{}", format!("found ({}d real embeddings)", m.dim()).green());
             m
@@ -141,61 +150,74 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
         config.bm25_k1,
         config.bm25_b,
     );
-
     let mut filemap: HashMap<String, Vec<u64>> = HashMap::new();
 
     for mut chunk in raw_chunks {
         let chunk_id = index.next_id();
         chunk.id = chunk_id;
         chunk.embedding_id = chunk_id;
-
-        // block_in_place lets tokio know we may block (Ollama HTTP call)
         let embedding = tokio::task::block_in_place(|| embed_model.embed(&chunk.content));
-
-        filemap
-            .entry(chunk.file_path.clone())
-            .or_default()
-            .push(chunk_id);
-
+        filemap.entry(chunk.file_path.clone()).or_default().push(chunk_id);
         index.add_chunk(chunk, embedding)?;
         embed_bar.inc(1);
     }
-
     embed_bar.finish_with_message("done");
 
-    // 7. Save everything to disk
-    print!("  Building inverted index... ");
-    let _ = std::io::Write::flush(&mut std::io::stdout());
-    let bm25_start = std::time::Instant::now();
-    storage.save_bm25(&index.inverted)?;
-    println!("done [{:.1}s]", bm25_start.elapsed().as_secs_f64());
+    Ok((index, filemap))
+}
 
-    print!("  Building HNSW graph...      ");
-    let _ = std::io::Write::flush(&mut std::io::stdout());
-    let hnsw_start = std::time::Instant::now();
-    storage.save_hnsw(&index.hnsw)?;
-    println!("done [{:.1}s]", hnsw_start.elapsed().as_secs_f64());
-
-    storage.save_chunks(&index.chunk_store)?;
-    storage.save_filemap(&filemap)?;
-
+fn extract_graph(file_entries: &[(PathBuf, Language, String)]) -> needle::graph::CodeGraph {
     print!("  Building knowledge graph...  ");
     let _ = std::io::Write::flush(&mut std::io::stdout());
-    let graph_start = std::time::Instant::now();
-    let code_graph = graph::extract(&file_entries);
-    storage.save_graph(&code_graph)?;
+    let start = std::time::Instant::now();
+    // Spawn a thread with a large stack — recursive tree-sitter traversal
+    // overflows the default 1 MB Windows stack on deeply nested source files.
+    let code_graph = std::thread::scope(|s| {
+        std::thread::Builder::new()
+            .stack_size(256 * 1024 * 1024)
+            .spawn_scoped(s, || graph::extract(file_entries))
+            .expect("thread spawn failed")
+            .join()
+            .expect("graph extraction panicked")
+    });
     println!(
         "done [{:.1}s]  {} nodes  {} edges",
-        graph_start.elapsed().as_secs_f64(),
+        start.elapsed().as_secs_f64(),
         code_graph.stats.total_nodes,
         code_graph.stats.total_edges,
     );
+    code_graph
+}
+
+fn persist_artifacts(
+    storage: &Storage,
+    index: &Index,
+    filemap: &HashMap<String, Vec<u64>>,
+    code_graph: &needle::graph::CodeGraph,
+    config: &Config,
+    total_files: usize,
+) -> Result<()> {
+    print!("  Building inverted index... ");
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+    let t = std::time::Instant::now();
+    storage.save_bm25(&index.inverted)?;
+    println!("done [{:.1}s]", t.elapsed().as_secs_f64());
+
+    print!("  Building HNSW graph...      ");
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+    let t = std::time::Instant::now();
+    storage.save_hnsw(&index.hnsw)?;
+    println!("done [{:.1}s]", t.elapsed().as_secs_f64());
+
+    storage.save_chunks(&index.chunk_store)?;
+    storage.save_filemap(filemap)?;
+    storage.save_graph(code_graph)?;
 
     let meta = IndexMetadata {
-        total_chunks: total_chunks as u64,
+        total_chunks: (index.chunk_store.len()) as u64,
         total_files: total_files as u64,
         last_update_ts: Utc::now().timestamp() as u64,
-        embedding_model: embed_model.model_string(),
+        embedding_model: String::from("hash-projection"),
         embedding_dim: config.embedding_dim as u32,
         hnsw_m: config.hnsw_m,
         hnsw_ef_construction: config.hnsw_ef_construction,
@@ -207,31 +229,43 @@ pub async fn run(directories: Vec<String>) -> Result<()> {
     };
     storage.save_metadata(&meta)?;
 
-    // 8. Summary
     let disk_bytes = storage.index_size_bytes();
     let vocab = index.inverted.vocabulary_size();
-
     println!();
     println!("{}", "✓ Index ready".green().bold());
     println!(
         "  {}  ·  {}  ·  {} on disk",
-        format!("{} chunks", total_chunks).cyan(),
+        format!("{} chunks", meta.total_chunks).cyan(),
         format!("{} files", total_files).cyan(),
         human_size(disk_bytes).cyan(),
     );
     println!(
         "  {} terms in vocabulary  ·  HNSW M={} efC={}",
-        vocab,
-        config.hnsw_m,
-        config.hnsw_ef_construction,
+        vocab, config.hnsw_m, config.hnsw_ef_construction,
     );
-    println!(
-        "  Model: hash-projection-{}",
-        config.embedding_dim
-    );
+    println!("  Model: hash-projection-{}", config.embedding_dim);
     println!("  Stored at: {}", Storage::default_index_dir().display());
-
     Ok(())
+}
+
+fn warn_if_not_gitignored() {
+    let index_dir = Storage::default_index_dir();
+    let Some(needle_dir) = index_dir.parent() else { return };
+    let Some(repo_root) = needle_dir.parent() else { return };
+    if !repo_root.join(".git").exists() {
+        return;
+    }
+    let gitignore_path = repo_root.join(".gitignore");
+    let already_ignored = std::fs::read_to_string(&gitignore_path)
+        .map(|s| s.lines().any(|l| l.trim() == ".needle/" || l.trim() == ".needle"))
+        .unwrap_or(false);
+    if !already_ignored {
+        println!();
+        println!(
+            "  {} .needle/ isn't in this repo's .gitignore yet — add it so the index doesn't get committed.",
+            "tip:".yellow().bold()
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +278,6 @@ fn collect_files(dir: &Path, config: &Config) -> Vec<(PathBuf, Language)> {
         .into_iter()
         .filter_entry(|e| {
             let name = e.file_name().to_string_lossy();
-            // Skip hidden dirs and configured ignore patterns
             !name.starts_with('.')
                 && !config.should_ignore(&name)
                 && !config.should_ignore(&e.path().to_string_lossy())
@@ -265,7 +298,6 @@ fn collect_files(dir: &Path, config: &Config) -> Vec<(PathBuf, Language)> {
         .collect()
 }
 
-/// Strip Windows extended-length path prefix `\\?\` so paths work everywhere.
 fn clean_path(path: PathBuf) -> PathBuf {
     let s = path.to_string_lossy();
     if let Some(stripped) = s.strip_prefix(r"\\?\") {
